@@ -38,3 +38,77 @@ body {
   @apply rounded-md border border-ink-line bg-transparent px-4 py-2 text-sm font-medium text-parchment
     transition hover:border-mute disabled:cursor-not-allowed disabled:opacity-50;
 }
+
+/* --- Platinum trophy marker (components/StatusMark.tsx) --- */
+
+/* A bright highlight that sweeps across the trophy chip, then rests. */
+.gv-trophy-glint {
+  position: absolute;
+  top: -50%;
+  left: 0;
+  width: 45%;
+  height: 200%;
+  pointer-events: none;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.85),
+    transparent
+  );
+  transform: translateX(-240%) rotate(12deg);
+  animation: gv-trophy-glint 4.5s ease-in-out infinite;
+}
+
+@keyframes gv-trophy-glint {
+  0% {
+    transform: translateX(-240%) rotate(12deg);
+  }
+  16%,
+  100% {
+    transform: translateX(320%) rotate(12deg);
+  }
+}
+
+/* Two little star glints that twinkle out of sync. */
+.gv-sparkle {
+  position: absolute;
+  pointer-events: none;
+  opacity: 0;
+  transform: scale(0) rotate(0deg);
+  filter: drop-shadow(0 0 1px rgba(255, 255, 255, 0.9));
+}
+.gv-sparkle-a {
+  top: 1px;
+  right: 1px;
+  width: 8px;
+  height: 8px;
+  animation: gv-sparkle 2.4s ease-in-out infinite;
+}
+.gv-sparkle-b {
+  bottom: 1px;
+  left: 2px;
+  width: 6px;
+  height: 6px;
+  animation: gv-sparkle 3.1s ease-in-out 0.8s infinite;
+}
+
+@keyframes gv-sparkle {
+  0%,
+  70%,
+  100% {
+    opacity: 0;
+    transform: scale(0) rotate(0deg);
+  }
+  35% {
+    opacity: 1;
+    transform: scale(1) rotate(45deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gv-trophy-glint,
+  .gv-sparkle {
+    animation: none;
+    opacity: 0;
+  }
+}

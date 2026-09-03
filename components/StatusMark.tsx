@@ -21,7 +21,7 @@ export default function StatusMark({
     const gid = `plat-sheen-${idSuffix}`;
     return (
       <span
-        className={`flex h-6 w-6 items-center justify-center rounded-full bg-black/55 shadow ring-1 ring-white/25 ${className}`}
+        className={`relative flex h-6 w-6 items-center justify-center overflow-hidden rounded-full bg-black/55 shadow ring-1 ring-white/25 ${className}`}
       >
         <svg
           viewBox="0 0 24 24"
@@ -47,6 +47,21 @@ export default function StatusMark({
           <path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22" />
           <path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22" />
           <path d="M18 2H6v7a6 6 0 0 0 12 0V2Z" fill={`url(#${gid})`} />
+        </svg>
+
+        {/* animated shine + twinkles (CSS in app/globals.css) */}
+        <span className="gv-trophy-glint" aria-hidden="true" />
+        <svg className="gv-sparkle gv-sparkle-a" viewBox="0 0 24 24" aria-hidden="true">
+          <path
+            d="M12 1.5l2.4 8.1L22.5 12l-8.1 2.4L12 22.5l-2.4-8.1L1.5 12l8.1-2.4z"
+            fill="#ffffff"
+          />
+        </svg>
+        <svg className="gv-sparkle gv-sparkle-b" viewBox="0 0 24 24" aria-hidden="true">
+          <path
+            d="M12 1.5l2.4 8.1L22.5 12l-8.1 2.4L12 22.5l-2.4-8.1L1.5 12l8.1-2.4z"
+            fill="#ffffff"
+          />
         </svg>
       </span>
     );
