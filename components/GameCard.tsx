@@ -37,7 +37,8 @@ export default function GameCard({
 }: GameCardProps) {
   const value = valueCibGbp ?? valueLooseGbp;
   const band = scoreBadgeEnabled ? pickScoreBand(score, scoreBands) : null;
-  const dimmed = dimCompleted && playStatus === "completed";
+  const dimmed =
+    dimCompleted && (playStatus === "completed" || playStatus === "platinum");
 
   return (
     <Link

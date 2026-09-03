@@ -332,7 +332,9 @@ export default function SettingsPage() {
         </p>
 
         <div className="mt-4 flex items-center justify-between gap-3">
-          <span className="text-sm text-parchment">Dim completed covers</span>
+          <span className="text-sm text-parchment">
+            Dim completed &amp; platinum covers
+          </span>
           <Toggle
             checked={settings.dimCompleted}
             onChange={(v) => saveSettings({ dimCompleted: v })}

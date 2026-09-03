@@ -54,7 +54,7 @@ export default function StatusMark({
 
   return (
     <span
-      className={`h-3.5 w-3.5 rounded-full shadow ring-1 ring-black/30 ${className}`}
+      className={`block h-3.5 w-3.5 rounded-full shadow ring-1 ring-black/30 ${className}`}
       style={{ backgroundColor: color }}
     />
   );
