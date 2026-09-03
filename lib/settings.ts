@@ -18,6 +18,8 @@ export async function updateSettings(data: {
   twitchClientId?: string | null;
   twitchClientSecret?: string | null;
   hltbEnabled?: boolean;
+  steamImportEnabled?: boolean;
+  steamApiKey?: string | null;
   priceChartingEnabled?: boolean;
   currencyApiUrl?: string | null;
   scoreBadgeEnabled?: boolean;
@@ -48,4 +50,11 @@ export async function getTwitchCredentials() {
     clientSecret:
       settings.twitchClientSecret || process.env.TWITCH_CLIENT_SECRET || "",
   };
+}
+
+// Steam Web API key — database first (set on the Settings page), then the
+// STEAM_API_KEY env var, so it can be changed without redeploying.
+export async function getSteamApiKey(): Promise<string> {
+  const settings = await getSettings();
+  return settings.steamApiKey || process.env.STEAM_API_KEY || "";
 }

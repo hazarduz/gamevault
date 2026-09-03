@@ -17,6 +17,8 @@ function serialize(
     twitchClientId: settings.twitchClientId ?? "",
     hasTwitchClientSecret: !!settings.twitchClientSecret,
     hltbEnabled: settings.hltbEnabled,
+    steamImportEnabled: settings.steamImportEnabled,
+    hasSteamApiKey: !!(settings.steamApiKey || process.env.STEAM_API_KEY),
     priceChartingEnabled: settings.priceChartingEnabled,
     currencyApiUrl: settings.currencyApiUrl ?? "",
     barcodeLookupEnabled: settings.barcodeLookupEnabled,
@@ -46,6 +48,13 @@ export async function PATCH(req: NextRequest) {
 
   if (typeof body.igdbEnabled === "boolean") data.igdbEnabled = body.igdbEnabled;
   if (typeof body.hltbEnabled === "boolean") data.hltbEnabled = body.hltbEnabled;
+  if (typeof body.steamImportEnabled === "boolean")
+    data.steamImportEnabled = body.steamImportEnabled;
+  // Only overwrite the key if a new one was actually typed in — an empty
+  // string means "leave it as-is", not "clear it".
+  if (typeof body.steamApiKey === "string" && body.steamApiKey !== "") {
+    data.steamApiKey = body.steamApiKey.trim();
+  }
   if (typeof body.priceChartingEnabled === "boolean")
     data.priceChartingEnabled = body.priceChartingEnabled;
   if (typeof body.twitchClientId === "string")

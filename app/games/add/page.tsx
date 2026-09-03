@@ -123,9 +123,14 @@ export default function AddGamePage() {
     <div className="mx-auto max-w-2xl">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <h1 className="font-display text-2xl font-bold text-parchment">Add a game</h1>
-        <Link href="/games/import" className="text-xs text-amber hover:underline">
-          Import from photos →
-        </Link>
+        <div className="flex flex-wrap gap-3">
+          <Link href="/games/import" className="text-xs text-amber hover:underline">
+            Import from photos →
+          </Link>
+          <Link href="/settings" className="text-xs text-amber hover:underline">
+            Import from Steam →
+          </Link>
+        </div>
       </div>
       <p className="mt-1 text-sm text-mute">
         Search IGDB to auto-fill cover art and details, or skip straight to

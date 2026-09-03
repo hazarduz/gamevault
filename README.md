@@ -27,6 +27,10 @@ account has its own completely separate collection.
 - **PlayStation trophy sync** — point it at your PSN account with an NPSSO token
   and it finds every game where you've earned the platinum, then lets you confirm
   the match and mark them **Platinum Achieved**.
+- **Steam library import** — add your Steam Web API key once (admin), then each
+  user pastes their SteamID in Settings and pulls their owned games in, matched
+  against IGDB for art and metadata. Games come in as Digital / PC, and a re-scan
+  skips anything already imported.
 - **Wishlist** — games you want, kept off the main grid. "Move to collection"
   when you buy one.
 - **Release Calendar** — upcoming games from IGDB, grouped by date, filtered to
@@ -90,9 +94,10 @@ account has its own completely separate collection.
   colours, "dim completed" toggle, PlayStation Online ID + NPSSO token, and your
   own username/password.
 - **Site settings** (admin only): enable/disable IGDB, HowLongToBeat,
-  PriceCharting and the barcode lookup; the Twitch/IGDB credentials; the currency
-  conversion API URL; the barcode API URL. These are instance-wide and stored in
-  the database (taking priority over `.env`).
+  PriceCharting, Steam import and the barcode lookup; the Twitch/IGDB credentials;
+  the Steam Web API key; the currency conversion API URL; the barcode API URL.
+  These are instance-wide and stored in the database (taking priority over
+  `.env`).
 
 ## How the data sources work
 
@@ -107,6 +112,11 @@ public API, so:
   authenticated with a per-user NPSSO token (lasts ~2 months, then re-paste it).
 - **`lib/barcode.ts`** hits UPCitemdb's free tier for a product name, then feeds
   it to IGDB search.
+
+Steam is the exception — **`lib/steam.ts`** uses the official Steam Web API
+(`GetOwnedGames` / `ResolveVanityURL`). It needs a free key from
+https://steamcommunity.com/dev/apikey, set in Settings or as `STEAM_API_KEY`, and
+the target profile's "Game details" privacy set to Public.
 
 If a site changes shape, that one button starts failing and the rest of the app
 keeps working — you can always type the value in. Comments in each file point at
@@ -136,6 +146,7 @@ app/
   api/igdb/search/           IGDB search + detail
   api/enrich/price · hltb/   PriceCharting / HowLongToBeat
   api/psn/scan · apply/      PlayStation platinum sync
+  api/steam/scan/            Steam owned-games list (matched client-side)
   api/wishlist/ · platforms/ Wishlist add / owned-platform list
   api/prefs/ · settings/     Per-user prefs / instance settings (admin PATCH)
   api/admin/users/           Invite / regenerate / delete users
@@ -143,7 +154,7 @@ app/
 lib/
   igdb.ts                    IGDB client — search, detail, upcoming, similar
   pricecharting.ts hltb.ts   Value & completion-time lookups
-  psn.ts barcode.ts          PSN trophies / barcode -> product name
+  psn.ts steam.ts barcode.ts PSN trophies / Steam library / barcode -> name
   score-badge.ts play-status.ts media.ts   Badge / status / media helpers
   tenant.ts prefs.ts         Multi-user bootstrap + per-user preferences
   session.ts settings.ts     Current user / instance config

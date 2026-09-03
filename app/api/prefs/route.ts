@@ -18,6 +18,7 @@ function serialize(p: Awaited<ReturnType<typeof getUserPrefs>>) {
     psnEnabled: p.psnEnabled,
     psnOnlineId: p.psnOnlineId ?? "",
     hasPsnNpsso: !!p.psnNpsso,
+    steamId: p.steamId ?? "",
   };
 }
 
@@ -56,6 +57,7 @@ export async function PATCH(req: NextRequest) {
 
   if (typeof body.psnEnabled === "boolean") data.psnEnabled = body.psnEnabled;
   if (typeof body.psnOnlineId === "string") data.psnOnlineId = body.psnOnlineId || null;
+  if (typeof body.steamId === "string") data.steamId = body.steamId.trim() || null;
   // Only overwrite the token if a new one was actually typed in.
   if (typeof body.psnNpsso === "string" && body.psnNpsso !== "") {
     data.psnNpsso = body.psnNpsso;

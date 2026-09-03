@@ -21,6 +21,7 @@ export async function updateUserPrefs(
     psnEnabled?: boolean;
     psnOnlineId?: string | null;
     psnNpsso?: string | null;
+    steamId?: string | null;
   }
 ) {
   await getUserPrefs(userId); // ensure the row exists

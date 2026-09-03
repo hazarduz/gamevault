@@ -5,12 +5,13 @@ import type { IgdbGameDetail } from "@/lib/igdb";
 
 export const dynamic = "force-dynamic";
 
-const MAX = 150;
+const MAX = 1000;
 
-// POST /api/games/import { games: [{ igdbId?, title, platform }] }
-// Bulk-create from the photo-import review table. Dedupes against the
-// user's collection and within the payload; rows with an igdbId get full
-// IGDB metadata in one batch call.
+// POST /api/games/import { games: [{ igdbId?, title, platform, format?, steamAppId? }] }
+// Bulk-create from a review table (photo import, Steam library import).
+// Dedupes against the user's collection and within the payload — by
+// igdbId, by steamAppId, and by title+platform — and rows with an igdbId
+// get full IGDB metadata in one batch call.
 export async function POST(req: NextRequest) {
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: "Not signed in." }, { status: 401 });
@@ -30,16 +31,25 @@ export async function POST(req: NextRequest) {
   try {
     const existing = await prisma.game.findMany({
       where: { userId: user.id },
-      select: { igdbId: true, title: true, platform: true },
+      select: { igdbId: true, steamAppId: true, title: true, platform: true },
     });
     const haveIgdb = new Set(
       existing.filter((e) => e.igdbId != null).map((e) => e.igdbId as number)
+    );
+    const haveSteam = new Set(
+      existing.filter((e) => e.steamAppId != null).map((e) => e.steamAppId as number)
     );
     const haveKey = new Set(
       existing.map((e) => `${e.title.toLowerCase()}|${e.platform.toLowerCase()}`)
     );
 
-    type Row = { igdbId: number | null; title: string; platform: string };
+    type Row = {
+      igdbId: number | null;
+      steamAppId: number | null;
+      title: string;
+      platform: string;
+      format: "Physical" | "Digital";
+    };
     const rows: Row[] = [];
     let skipped = 0;
 
@@ -52,8 +62,16 @@ export async function POST(req: NextRequest) {
       }
       const n = Number(raw?.igdbId);
       const igdbId = Number.isInteger(n) && n > 0 ? n : null;
+      const s = Number(raw?.steamAppId);
+      const steamAppId = Number.isInteger(s) && s > 0 ? s : null;
+      const format: "Physical" | "Digital" =
+        raw?.format === "Digital" ? "Digital" : "Physical";
       const key = `${title.toLowerCase()}|${platform.toLowerCase()}`;
 
+      if (steamAppId != null && haveSteam.has(steamAppId)) {
+        skipped++;
+        continue;
+      }
       if (igdbId != null) {
         if (haveIgdb.has(igdbId)) {
           skipped++;
@@ -64,8 +82,9 @@ export async function POST(req: NextRequest) {
         skipped++;
         continue;
       }
+      if (steamAppId != null) haveSteam.add(steamAppId);
       haveKey.add(key);
-      rows.push({ igdbId, title, platform });
+      rows.push({ igdbId, steamAppId, title, platform, format });
     }
 
     if (rows.length === 0) {
@@ -92,7 +111,9 @@ export async function POST(req: NextRequest) {
         userId: user.id,
         title: d?.title ?? r.title,
         platform: r.platform,
+        format: r.format,
         igdbId: r.igdbId,
+        steamAppId: r.steamAppId,
         coverUrl: d?.coverUrl ?? null,
         releaseDate: d?.releaseDate ? new Date(d.releaseDate) : null,
         summary: d?.summary ?? null,
@@ -105,7 +126,10 @@ export async function POST(req: NextRequest) {
 
     let imported = 0;
     for (let i = 0; i < data.length; i += 200) {
-      const res = await prisma.game.createMany({ data: data.slice(i, i + 200) as any });
+      const res = await prisma.game.createMany({
+        data: data.slice(i, i + 200) as any,
+        skipDuplicates: true, // race-safe against the per-user unique indexes
+      });
       imported += res.count;
     }
 

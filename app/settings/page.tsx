@@ -9,6 +9,7 @@ import {
   type PlayStatus,
 } from "@/lib/play-status";
 import StatusMark from "@/components/StatusMark";
+import SteamImport from "@/components/SteamImport";
 
 interface Prefs {
   scoreBadgeEnabled: boolean;
@@ -21,6 +22,7 @@ interface Prefs {
   psnEnabled: boolean;
   psnOnlineId: string;
   hasPsnNpsso: boolean;
+  steamId: string;
 }
 
 interface Instance {
@@ -29,6 +31,8 @@ interface Instance {
   twitchClientId: string;
   hasTwitchClientSecret: boolean;
   hltbEnabled: boolean;
+  steamImportEnabled: boolean;
+  hasSteamApiKey: boolean;
   priceChartingEnabled: boolean;
   currencyApiUrl: string;
   barcodeLookupEnabled: boolean;
@@ -58,6 +62,7 @@ export default function SettingsPage() {
   const [statusMsg, setStatusMsg] = useState<string | null>(null);
 
   const [twitchSecretInput, setTwitchSecretInput] = useState("");
+  const [steamKeyInput, setSteamKeyInput] = useState("");
   const [psnNpssoInput, setPsnNpssoInput] = useState("");
 
   const [currentPassword, setCurrentPassword] = useState("");
@@ -122,7 +127,7 @@ export default function SettingsPage() {
   }
 
   async function saveInstance(
-    patch: Partial<Instance> & { twitchClientSecret?: string }
+    patch: Partial<Instance> & { twitchClientSecret?: string; steamApiKey?: string }
   ) {
     setStatusMsg(null);
     const res = await fetch("/api/settings", {
@@ -137,6 +142,7 @@ export default function SettingsPage() {
     }
     setInstance(data);
     setTwitchSecretInput("");
+    setSteamKeyInput("");
     setStatusMsg("Saved.");
   }
 
@@ -657,6 +663,12 @@ export default function SettingsPage() {
         )}
       </section>
 
+      {/* --- Steam library import (per-user) --- */}
+      <SteamImport
+        initialSteamId={prefs.steamId}
+        available={instance.steamImportEnabled && instance.hasSteamApiKey}
+      />
+
       {/* --- Account --- */}
       <section className="rounded-card border border-ink-line bg-ink-soft p-5">
         <h2 className="font-display text-lg font-bold text-parchment">Account</h2>
@@ -923,6 +935,47 @@ export default function SettingsPage() {
             <p className="mt-1 text-sm text-mute">
               Completion time estimates. Unofficial endpoint, no credentials needed.
             </p>
+          </section>
+
+          {/* --- Steam --- */}
+          <section className="rounded-card border border-ink-line bg-ink-soft p-5">
+            <div className="flex items-center justify-between">
+              <h2 className="font-display text-lg font-bold text-parchment">Steam import</h2>
+              <Toggle
+                checked={instance.steamImportEnabled}
+                onChange={(v) => saveInstance({ steamImportEnabled: v })}
+              />
+            </div>
+            <p className="mt-1 text-sm text-mute">
+              Lets each user pull in their owned Steam games from their personal
+              settings. One Steam Web API key covers the whole instance — get a
+              free one at{" "}
+              <a
+                className="text-amber underline"
+                href="https://steamcommunity.com/dev/apikey"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                steamcommunity.com/dev/apikey
+              </a>
+              .
+            </p>
+            <div className="mt-4">
+              <label className="label">
+                Steam Web API key{" "}
+                {instance.hasSteamApiKey && (
+                  <span className="text-xs text-mute">(currently set)</span>
+                )}
+              </label>
+              <input
+                type="password"
+                className="field"
+                placeholder={instance.hasSteamApiKey ? "••••••••" : ""}
+                value={steamKeyInput}
+                onChange={(e) => setSteamKeyInput(e.target.value)}
+                onBlur={() => steamKeyInput && saveInstance({ steamApiKey: steamKeyInput })}
+              />
+            </div>
           </section>
 
           {/* --- PriceCharting --- */}

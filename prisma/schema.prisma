@@ -44,6 +44,12 @@ model Game {
   valueUpdatedAt  DateTime?
   valueSource     String?          // "pricecharting" | "manual"
 
+  // --- Steam import ---
+  // Set when a game was pulled in from the user's Steam library. Kept so a
+  // re-scan can skip games already imported without relying on fuzzy title
+  // matching. Null for everything added any other way.
+  steamAppId    Int?     // unique per user — see @@unique below
+
   // --- IGDB metadata ---
   igdbId        Int?     // unique per user — see @@unique below
   coverUrl      String?
@@ -68,6 +74,7 @@ model Game {
   updatedAt   DateTime @updatedAt
 
   @@unique([userId, igdbId])
+  @@unique([userId, steamAppId])
   @@index([title])
   @@index([platform])
   @@index([wishlist])
@@ -108,6 +115,10 @@ model UserPrefs {
   psnOnlineId String?
   psnNpsso    String?
 
+  // Steam library import. Just the account identifier — the Web API key is
+  // instance-wide (Settings.steamApiKey), so there's no per-user secret.
+  steamId     String?
+
   updatedAt DateTime @updatedAt
 }
 
@@ -124,6 +135,12 @@ model Settings {
   twitchClientSecret String?
 
   hltbEnabled        Boolean @default(true)
+
+  // Steam library import. The key is a single Steam Web API key for the
+  // whole instance (https://steamcommunity.com/dev/apikey); each user
+  // supplies their own SteamID in their personal settings.
+  steamImportEnabled Boolean @default(true)
+  steamApiKey        String?
 
   priceChartingEnabled Boolean @default(true)
   currencyApiUrl       String?
