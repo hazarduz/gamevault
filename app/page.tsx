@@ -46,6 +46,7 @@ export default async function DashboardPage({
   if (platform) keep.platform = platform;
 
   const totalValue = games.reduce((sum, g) => {
+    if (g.format === "Digital") return sum;
     const v = g.valueCibGbp ?? g.valueLooseGbp;
     return sum + (v ? Number(v) : 0);
   }, 0);

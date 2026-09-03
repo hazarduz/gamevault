@@ -44,7 +44,7 @@ export default function GameCard({
   wishlist = false,
   releaseDate = null,
 }: GameCardProps) {
-  const value = valueCibGbp ?? valueLooseGbp;
+  const value = format === "Digital" ? null : valueCibGbp ?? valueLooseGbp;
   const band = !wishlist && scoreBadgeEnabled ? pickScoreBand(score, scoreBands) : null;
   const dimmed =
     !wishlist &&

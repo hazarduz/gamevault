@@ -32,8 +32,9 @@ export async function POST(req: NextRequest) {
     ]);
 
     if (gameId) {
+      // Never write a resale value onto a digital game.
       await prisma.game.updateMany({
-        where: { id: gameId, userId: user.id },
+        where: { id: gameId, userId: user.id, format: { not: "Digital" } },
         data: {
           valueLooseGbp: loose,
           valueCibGbp: cib,

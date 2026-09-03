@@ -29,6 +29,7 @@ interface Game {
   valueCibGbp: number | null;
   valueNewGbp: number | null;
   valueUpdatedAt: string | null;
+  valueSource: string | null;
   hltbMainHours: number | null;
   hltbMainExtraHours: number | null;
   hltbCompletionistHours: number | null;
@@ -199,19 +200,34 @@ export default function GameDetailPage({ params }: { params: { id: string } }) {
         <section className="mt-8">
           <div className="flex items-center justify-between">
             <h2 className="font-display text-lg font-bold text-parchment">Current value</h2>
-            <button onClick={fetchPrice} disabled={priceLoading} className="btn-secondary text-xs">
-              {priceLoading ? "Looking up…" : "Fetch from PriceCharting"}
-            </button>
+            {game.format !== "Digital" && (
+              <button onClick={fetchPrice} disabled={priceLoading} className="btn-secondary text-xs">
+                {priceLoading ? "Looking up…" : "Fetch from PriceCharting"}
+              </button>
+            )}
           </div>
-          <div className="mt-3 grid grid-cols-3 gap-3">
-            <ValueField label="Loose" value={game.valueLooseGbp} onSave={(v) => patch({ valueLooseGbp: v })} />
-            <ValueField label="Complete (CIB)" value={game.valueCibGbp} onSave={(v) => patch({ valueCibGbp: v })} />
-            <ValueField label="New/Sealed" value={game.valueNewGbp} onSave={(v) => patch({ valueNewGbp: v })} />
-          </div>
-          {game.valueUpdatedAt && (
-            <p className="mt-2 text-xs text-mute">
-              Updated {new Date(game.valueUpdatedAt).toLocaleDateString()}
-            </p>
+          {game.format === "Digital" ? (
+            <div className="mt-3 grid grid-cols-3 gap-3">
+              {["Loose", "Complete (CIB)", "New/Sealed"].map((label) => (
+                <div key={label}>
+                  <label className="label">{label}</label>
+                  <span className="field block text-mute">N/A</span>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <>
+              <div className="mt-3 grid grid-cols-3 gap-3">
+                <ValueField label="Loose" value={game.valueLooseGbp} onSave={(v) => patch({ valueLooseGbp: v })} />
+                <ValueField label="Complete (CIB)" value={game.valueCibGbp} onSave={(v) => patch({ valueCibGbp: v })} />
+                <ValueField label="New/Sealed" value={game.valueNewGbp} onSave={(v) => patch({ valueNewGbp: v })} />
+              </div>
+              {game.valueUpdatedAt && (
+                <p className="mt-2 text-xs text-mute">
+                  Updated {new Date(game.valueUpdatedAt).toLocaleDateString()}
+                </p>
+              )}
+            </>
           )}
         </section>
 
@@ -307,7 +323,15 @@ export default function GameDetailPage({ params }: { params: { id: string } }) {
               onChange={(e) =>
                 patch(
                   e.target.value === "Digital"
-                    ? { format: "Digital", condition: null }
+                    ? {
+                        format: "Digital",
+                        condition: null,
+                        valueLooseGbp: null,
+                        valueCibGbp: null,
+                        valueNewGbp: null,
+                        valueUpdatedAt: null,
+                        valueSource: null,
+                      }
                     : {
                         format: "Physical",
                         condition: game.condition ?? "Complete in box",
