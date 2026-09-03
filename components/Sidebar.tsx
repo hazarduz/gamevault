@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import Logo from "@/components/Logo";
 
 interface PlatformCount {
   platform: string;
@@ -71,8 +72,11 @@ export default function Sidebar() {
   );
 
   const brand = (
-    <Link href="/" className="font-display text-lg font-bold tracking-tight text-parchment">
-      Game<span className="text-amber">Vault</span>
+    <Link href="/" className="flex items-center gap-2">
+      <Logo size={26} />
+      <span className="font-display text-lg font-bold tracking-tight text-parchment">
+        Game<span className="text-amber">Vault</span>
+      </span>
     </Link>
   );
 

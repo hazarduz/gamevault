@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { Suspense } from "react";
+import Logo from "@/components/Logo";
 
 // Only allow same-origin relative paths as a post-login destination, so
 // a crafted ?next=https://evil.example can't turn this into an open
@@ -66,6 +67,12 @@ function LoginForm() {
 
   return (
     <div className="mx-auto mt-16 max-w-sm">
+      <div className="mb-6 flex items-center gap-2">
+        <Logo size={34} />
+        <span className="font-display text-xl font-bold tracking-tight text-parchment">
+          Game<span className="text-amber">Vault</span>
+        </span>
+      </div>
       <h1 className="font-display text-2xl font-bold text-parchment">
         {isFirstRun ? "Set up GameVault" : "Log in"}
       </h1>
