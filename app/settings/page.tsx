@@ -13,6 +13,8 @@ interface SettingsShape {
   currencyApiUrl: string;
   scoreBadgeEnabled: boolean;
   scoreBadgeBands: ScoreBand[];
+  barcodeLookupEnabled: boolean;
+  barcodeApiUrl: string;
 }
 
 export default function SettingsPage() {
@@ -289,6 +291,36 @@ export default function SettingsPage() {
           <button type="button" onClick={resetBands} className="btn-secondary text-xs">
             Reset to defaults
           </button>
+        </div>
+      </section>
+
+      {/* --- Barcode lookup --- */}
+      <section className="rounded-card border border-ink-line bg-ink-soft p-5">
+        <div className="flex items-center justify-between">
+          <h2 className="font-display text-lg font-bold text-parchment">Barcode lookup</h2>
+          <Toggle
+            checked={settings.barcodeLookupEnabled}
+            onChange={(v) => saveSettings({ barcodeLookupEnabled: v })}
+          />
+        </div>
+        <p className="mt-1 text-sm text-mute">
+          Powers the &ldquo;Scan barcode&rdquo; button on the Add a game screen.
+          Resolves a scanned UPC/EAN to a product name, which is then searched on
+          IGDB. Default is UPCitemdb&rsquo;s free tier (no key, ~100/day).
+        </p>
+        <div className="mt-4">
+          <label className="label">
+            Barcode API URL{" "}
+            <span className="text-xs text-mute">
+              (barcode appended, or use a {"{code}"} placeholder)
+            </span>
+          </label>
+          <input
+            className="field"
+            defaultValue={settings.barcodeApiUrl}
+            placeholder="https://api.upcitemdb.com/prod/trial/lookup?upc="
+            onBlur={(e) => saveSettings({ barcodeApiUrl: e.target.value })}
+          />
         </div>
       </section>
 

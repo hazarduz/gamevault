@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { PLATFORM_OPTIONS, pickPreferredPlatform } from "@/lib/platforms";
+import BarcodeScanner from "@/components/BarcodeScanner";
 
 interface IgdbHit {
   igdbId: number;
@@ -37,18 +38,35 @@ export default function AddGamePage() {
   });
   const [saving, setSaving] = useState(false);
 
-  async function runSearch() {
-    if (!query.trim()) return;
+  async function runSearch(term: string = query) {
+    if (!term.trim()) return;
     setSearching(true);
     setSearchError(null);
     try {
-      const res = await fetch(`/api/igdb/search?q=${encodeURIComponent(query)}`);
+      const res = await fetch(`/api/igdb/search?q=${encodeURIComponent(term)}`);
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Search failed");
       setResults(data);
     } catch (e: any) {
       setSearchError(e.message);
     } finally {
+      setSearching(false);
+    }
+  }
+
+  async function handleScannedCode(code: string) {
+    setSearching(true);
+    setSearchError(null);
+    setResults([]);
+    try {
+      const res = await fetch(`/api/barcode?code=${encodeURIComponent(code)}`);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Barcode lookup failed");
+      const term: string = data.cleanedTitle || data.productName;
+      setQuery(term);
+      await runSearch(term);
+    } catch (e: any) {
+      setSearchError(`${e.message} (barcode ${code})`);
       setSearching(false);
     }
   }
@@ -106,9 +124,9 @@ export default function AddGamePage() {
         the form and enter everything yourself.
       </p>
 
-      <div className="mt-6 flex gap-2">
+      <div className="mt-6 flex flex-wrap gap-2">
         <input
-          className="field"
+          className="field flex-1"
           placeholder="Search by title, e.g. Chrono Trigger"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
@@ -116,13 +134,18 @@ export default function AddGamePage() {
         />
         <button
           type="button"
-          onClick={runSearch}
+          onClick={() => runSearch()}
           disabled={searching}
           className="btn-secondary whitespace-nowrap"
         >
           {searching ? "Searching…" : "Search IGDB"}
         </button>
+        <BarcodeScanner disabled={searching} onScan={handleScannedCode} />
       </div>
+      <p className="mt-1 text-xs text-mute">
+        On a phone you can tap <span className="text-parchment">Scan barcode</span>{" "}
+        to photograph the box and look the title up automatically.
+      </p>
 
       {searchError && (
         <p className="mt-2 text-sm text-red-400">{searchError}</p>

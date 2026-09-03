@@ -93,5 +93,10 @@ model Settings {
   scoreBadgeEnabled Boolean @default(true)
   scoreBadgeBands   String?
 
+  // Barcode -> product-name lookup on the Add a game screen. Null URL
+  // means the built-in UPCitemdb trial endpoint (see lib/barcode.ts).
+  barcodeLookupEnabled Boolean @default(true)
+  barcodeApiUrl        String?
+
   updatedAt DateTime @updatedAt
 }

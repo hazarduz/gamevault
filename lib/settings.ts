@@ -22,6 +22,8 @@ export async function updateSettings(data: {
   currencyApiUrl?: string | null;
   scoreBadgeEnabled?: boolean;
   scoreBadgeBands?: string | null;
+  barcodeLookupEnabled?: boolean;
+  barcodeApiUrl?: string | null;
 }) {
   await getSettings(); // ensure row exists first
   return prisma.settings.update({

@@ -18,6 +18,8 @@ function serialize(settings: Awaited<ReturnType<typeof getSettings>>) {
     currencyApiUrl: settings.currencyApiUrl ?? "",
     scoreBadgeEnabled: settings.scoreBadgeEnabled,
     scoreBadgeBands: parseScoreBands(settings.scoreBadgeBands),
+    barcodeLookupEnabled: settings.barcodeLookupEnabled,
+    barcodeApiUrl: settings.barcodeApiUrl ?? "",
   };
 }
 
@@ -54,6 +56,11 @@ export async function PATCH(req: NextRequest) {
     // Store null when it sanitises to nothing so the defaults kick back in.
     data.scoreBadgeBands = clean.length > 0 ? JSON.stringify(clean) : null;
   }
+
+  if (typeof body.barcodeLookupEnabled === "boolean")
+    data.barcodeLookupEnabled = body.barcodeLookupEnabled;
+  if (typeof body.barcodeApiUrl === "string")
+    data.barcodeApiUrl = body.barcodeApiUrl || null;
 
   const updated = await updateSettings(data);
   return NextResponse.json(serialize(updated));
