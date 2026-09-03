@@ -1,107 +1,122 @@
 # GameVault
 
-A self-hosted catalogue for your physical video game collection: add games,
-auto-fill cover art and details from IGDB, and pull in current resale value
-(PriceCharting, converted to GBP) and completion times (HowLongToBeat).
-Everything is stored in your own Postgres database.
+A self-hosted catalogue for your video game collection — physical and digital,
+across every platform. Add games, auto-fill artwork and metadata from IGDB, track
+what you've played, pull in resale values and completion times, sync your earned
+PlayStation platinums, keep a wishlist, browse upcoming releases, and get
+recommendations based on what you already own.
+
+It's multi-user: one admin runs the instance and invites other people, and every
+account has its own completely separate collection.
+
+## Features
+
+- **Collection grid** with cover art, per-cover badges: an IGDB score circle
+  (colour-banded), a play-status dot, a physical/digital media icon, and the
+  current value. Filter by platform, sort by name / score / value / date added /
+  release date / your rating / play status.
+- **Play status** — Unplayed / In Progress / Completed / **Platinum Achieved**
+  (with an animated silver trophy). Completed and platinum covers dim. Dot
+  colours are yours to set.
+- **Media** — Physical or Digital per game. Physical shows a disc or cartridge
+  icon depending on the platform; digital shows a cloud. Condition and resale
+  value are hidden for digital games.
+- **Values** via PriceCharting (loose / CIB / new, scraped and converted to GBP),
+  or typed in by hand.
+- **Completion times** via HowLongToBeat.
+- **PlayStation trophy sync** — point it at your PSN account with an NPSSO token
+  and it finds every game where you've earned the platinum, then lets you confirm
+  the match and mark them **Platinum Achieved**.
+- **Wishlist** — games you want, kept off the main grid. "Move to collection"
+  when you buy one.
+- **Release Calendar** — upcoming games from IGDB, grouped by date, filtered to
+  your platforms. Wishlist straight from it, choosing the platform.
+- **Discover** and **Indie Discover** — recommendations aggregated from IGDB's
+  "similar games" across your whole collection, ranked by recurrence. Indie
+  Discover requires IGDB's Indie genre and drops the big publishers. A **Rotate**
+  button cycles fresh batches.
+- **Add by barcode** — on a phone, photograph a game's barcode; the browser
+  decodes it on-device and looks the title up (UPCitemdb) to seed the IGDB
+  search.
+- **Users & invites** — the admin creates a username and gets a one-time invite
+  link; the new person sets their own password and lands in an empty collection.
 
 ## Stack
 
-- **Next.js 14** (App Router, TypeScript) — one app serves both the UI and
-  the API routes.
-- **Prisma + PostgreSQL** — schema lives in `prisma/schema.prisma`.
-- **Tailwind CSS** — styling, tokens in `tailwind.config.ts`.
-- **Docker Compose** — runs the app and database together.
+- **Next.js 14** (App Router, TypeScript) — one app serves the UI and the API.
+- **Prisma + PostgreSQL** — schema in `prisma/schema.prisma`, no migration files
+  (`db push` on every boot).
+- **Tailwind CSS** — tokens in `tailwind.config.ts`.
+- **Docker Compose** — app + database together.
 
 ## Getting started
 
-1. Copy the environment template and fill it in. At minimum, set a real
-   `SESSION_SECRET` (used to sign login cookies) — generate one with
+1. Copy the env template and set a real `SESSION_SECRET` (signs login cookies) —
    `openssl rand -base64 32`:
 
    ```bash
    cp .env.example .env
    ```
 
-2. (Optional at this stage) Get free IGDB credentials — used for cover
-   art, release dates, summaries, genres:
-   - Go to https://dev.twitch.tv/console/apps/create
-   - Register any app (name can be anything, e.g. "GameVault";
-     OAuth Redirect URL can be `http://localhost`; Category "Application
-     Integration")
-   - Copy the **Client ID** and **Client Secret** into `.env` as
-     `TWITCH_CLIENT_ID` / `TWITCH_CLIENT_SECRET` — or skip this and add
-     them later from the in-app Settings page instead.
+2. (Optional now, can be done later in Settings) Get free IGDB credentials for
+   artwork, metadata, Discover and the calendar:
+   - https://dev.twitch.tv/console/apps/create — register any app (OAuth Redirect
+     URL `http://localhost`, category "Application Integration")
+   - Put the **Client ID** / **Client Secret** in `.env` as `TWITCH_CLIENT_ID` /
+     `TWITCH_CLIENT_SECRET`.
 
-3. Start everything:
+3. Start it:
 
    ```bash
    docker compose up --build
    ```
 
-   The app will be available at http://localhost:3000. On first boot it
-   automatically creates the database tables from the Prisma schema.
+   App on http://localhost:3000. On first boot it creates the tables from the
+   Prisma schema.
 
-4. The first time you open the app, you'll be asked to create an admin
-   account (username + password) — this is the only account, since
-   GameVault is built for a single collector. After that, every page and
-   API route requires being logged in.
+4. The first account you create is the **admin**. After that, new people join
+   only via invite links generated from Settings.
 
-## Login & Settings
+## Users, login & settings
 
-- **Login**: session-based, backed by a signed cookie (`SESSION_SECRET`
-  in `.env`) and a bcrypt-hashed password in the database. There's no
-  "forgot password" flow by design — if you lose the password, connect
-  to the database directly and delete the row in the `User` table to
-  trigger the first-run setup screen again.
-- **Settings page** (gear-style link in the navbar): toggle IGDB,
-  HowLongToBeat, and PriceCharting lookups on or off individually, edit
-  the Twitch/IGDB Client ID and Secret without redeploying, override the
-  currency conversion API URL, and change your username/password. Values
-  entered here are stored in the database and take priority over the
-  `.env` file, so `.env` just acts as the initial default.
+- **Login** — session cookie signed with `jose` (`SESSION_SECRET`), bcrypt
+  password hash. No "forgot password" flow: to reset, delete the row from the
+  `User` table (deleting the only user re-triggers first-run setup).
+- **Invites** — Settings → *Users* (admin only): enter a username, get a link
+  (copied to your clipboard), send it over. The link is single-use and expires in
+  7 days; regenerate or delete users from the same list. Deleting a user removes
+  all their games.
+- **Personal settings** (everyone): score-badge colours & ranges, play-status dot
+  colours, "dim completed" toggle, PlayStation Online ID + NPSSO token, and your
+  own username/password.
+- **Site settings** (admin only): enable/disable IGDB, HowLongToBeat,
+  PriceCharting and the barcode lookup; the Twitch/IGDB credentials; the currency
+  conversion API URL; the barcode API URL. These are instance-wide and stored in
+  the database (taking priority over `.env`).
 
-## Using it
+## How the data sources work
 
-- **Add a game**: search by title, pick the right platform/region match
-  from IGDB, and it fills in the cover art, summary, genres, developer,
-  and publisher automatically. You can also skip the search and type
-  everything in by hand.
-- **On a game's page**: click "Fetch from PriceCharting" to pull current
-  loose/complete/new prices (converted to GBP), or "Fetch from
-  HowLongToBeat" to pull completion times. Both can also just be typed in
-  directly — useful when a scrape doesn't find the right match, or for
-  older/obscure games that aren't listed.
-- **Metacritic score** is a manual field for now (Metacritic actively
-  blocks scraping), but the field is there and it's exactly the kind of
-  thing you can wire up yourself — see "Customising" below.
+None of PriceCharting, HowLongToBeat, PSN or the barcode lookup offer a free
+public API, so:
 
-## Customising
+- **`lib/pricecharting.ts`** parses PriceCharting's product pages and converts
+  USD → GBP via a keyless FX endpoint (default `open.er-api.com`).
+- **`lib/hltb.ts`** calls HowLongToBeat's own search endpoint (it needs a token
+  scraped from the site's frontend first).
+- **`lib/psn.ts`** uses the `psn-api` package against Sony's real endpoints,
+  authenticated with a per-user NPSSO token (lasts ~2 months, then re-paste it).
+- **`lib/barcode.ts`** hits UPCitemdb's free tier for a product name, then feeds
+  it to IGDB search.
 
-This is intentionally simple to extend:
-
-- **Add a field** (e.g. a "loan status" or a barcode): add it to
-  `prisma/schema.prisma`, run `npm run db:push` (or `docker compose exec
-  app npx prisma db push`), then surface it in `app/games/[id]/page.tsx`
-  and `app/games/add/page.tsx`.
-- **Add a new data source**: create a new file in `lib/` following the
-  pattern in `lib/pricecharting.ts` or `lib/hltb.ts`, then add an API
-  route under `app/api/enrich/` that calls it and updates the database.
-- **Change the look**: colours, fonts and radii are all defined as
-  tokens in `tailwind.config.ts` — change them once and the whole app
-  updates.
-- **Scrapers are fragile by nature**: PriceCharting and HowLongToBeat
-  don't offer free public APIs, so `lib/pricecharting.ts` and
-  `lib/hltb.ts` parse their public pages directly. If either site changes
-  its layout, that specific lookup button will start failing — the rest
-  of the app keeps working, and you can always fall back to typing the
-  value in by hand. Comments in both files point to what to check first.
+If a site changes shape, that one button starts failing and the rest of the app
+keeps working — you can always type the value in. Comments in each file point at
+what to check first.
 
 ## Local development (without Docker)
 
 ```bash
 npm install
-npm run db:push     # requires DATABASE_URL to point at a running Postgres
+npm run db:push     # DATABASE_URL must point at a running Postgres
 npm run dev
 ```
 
@@ -109,25 +124,42 @@ npm run dev
 
 ```
 app/
-  page.tsx                  Collection grid (dashboard)
-  login/page.tsx             Login / first-run admin setup
-  settings/page.tsx          Scraper toggles, credentials, account
-  games/add/page.tsx         Add-game form + IGDB search
-  games/[id]/page.tsx        Game detail / edit / enrich
-  api/games/                 CRUD for games
-  api/igdb/search/           IGDB search + detail lookup
-  api/enrich/price/          PriceCharting scrape -> GBP values
-  api/enrich/hltb/           HowLongToBeat scrape
-  api/auth/                  status / register / login / logout / change-password
-  api/settings/              Get/update scraper settings
+  page.tsx                   Collection grid (per-user)
+  wishlist/page.tsx          Wishlisted games
+  calendar/page.tsx          Upcoming releases (IGDB)
+  discover/ · indie/         Recommendations from IGDB similar_games
+  settings/page.tsx          Personal prefs + (admin) site config & users
+  login/ · invite/[token]/   Login / first-run / accept-invite
+  games/add/ · games/[id]/   Add form (+ barcode) / detail / edit / enrich
+  icon.svg                   The crest — served as the favicon
+  api/games/                 Per-user CRUD (ownership-checked)
+  api/igdb/search/           IGDB search + detail
+  api/enrich/price · hltb/   PriceCharting / HowLongToBeat
+  api/psn/scan · apply/      PlayStation platinum sync
+  api/wishlist/ · platforms/ Wishlist add / owned-platform list
+  api/prefs/ · settings/     Per-user prefs / instance settings (admin PATCH)
+  api/admin/users/           Invite / regenerate / delete users
+  api/auth/                  status / register / login / logout / invite / change-password
 lib/
-  igdb.ts                    IGDB/Twitch API client
-  pricecharting.ts           PriceCharting scraper + currency conversion
-  hltb.ts                    HowLongToBeat scraper
+  igdb.ts                    IGDB client — search, detail, upcoming, similar
+  pricecharting.ts hltb.ts   Value & completion-time lookups
+  psn.ts barcode.ts          PSN trophies / barcode -> product name
+  score-badge.ts play-status.ts media.ts   Badge / status / media helpers
+  tenant.ts prefs.ts         Multi-user bootstrap + per-user preferences
+  session.ts settings.ts     Current user / instance config
   prisma.ts                  Prisma client singleton
-  auth.ts                    Password hashing + session token signing
-  session.ts                 Read the logged-in user server-side
-  settings.ts                Read/write the Settings row (DB-backed config)
-middleware.ts                 Redirects to /login when not authenticated
-prisma/schema.prisma          Database schema — edit this to add fields
+components/                   Sidebar, GameCard, CalendarView, DiscoverGrid, Logo, …
+middleware.ts                 Auth gate (redirects to /login; /invite/* is public)
+prisma/schema.prisma          Database schema — edit and rebuild to add fields
 ```
+
+## Customising
+
+- **Add a field**: add it to `prisma/schema.prisma`, rebuild (the container runs
+  `prisma db push` on start), then surface it in `app/games/[id]/page.tsx` and
+  `app/games/add/page.tsx`.
+- **Change the look**: colours, fonts and radii are tokens in
+  `tailwind.config.ts`.
+- **New data source**: add a `lib/` module following `lib/hltb.ts`, then an API
+  route that calls it and writes to the database (ownership-check the game
+  against the current user).
