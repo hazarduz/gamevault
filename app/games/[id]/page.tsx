@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { PLATFORM_OPTIONS } from "@/lib/platforms";
 import { PLAY_STATUS_OPTIONS } from "@/lib/play-status";
+import MediaIcon from "@/components/MediaIcon";
 
 interface Game {
   id: string;
@@ -169,6 +170,7 @@ export default function GameDetailPage({ params }: { params: { id: string } }) {
       <div>
         <div className="flex items-center gap-2">
           <h1 className="font-display text-2xl font-bold text-parchment">{game.title}</h1>
+          <MediaIcon platform={game.platform} format={game.format} />
           {game.wishlist && (
             <span className="rounded-full bg-amber/90 px-2 py-0.5 font-display text-[10px] font-bold uppercase tracking-wide text-ink">
               Wishlist
@@ -291,6 +293,17 @@ export default function GameDetailPage({ params }: { params: { id: string } }) {
                   {o.label}
                 </option>
               ))}
+            </select>
+          </div>
+          <div>
+            <label className="label">Media</label>
+            <select
+              className="field"
+              value={game.format}
+              onChange={(e) => patch({ format: e.target.value })}
+            >
+              <option>Physical</option>
+              <option>Digital</option>
             </select>
           </div>
         </section>

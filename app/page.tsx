@@ -124,6 +124,7 @@ export default async function DashboardPage({
               statusBadgeEnabled={prefs.statusBadgeEnabled}
               statusColors={statusColors}
               dimCompleted={prefs.dimCompleted}
+              format={g.format}
             />
           ))}
         </div>

@@ -3,6 +3,7 @@ import Image from "next/image";
 import { pickScoreBand, type ScoreBand } from "@/lib/score-badge";
 import type { PlayStatus } from "@/lib/play-status";
 import StatusMark from "@/components/StatusMark";
+import MediaIcon from "@/components/MediaIcon";
 
 interface GameCardProps {
   id: string;
@@ -19,6 +20,7 @@ interface GameCardProps {
   statusBadgeEnabled?: boolean;
   statusColors?: Record<PlayStatus, string>;
   dimCompleted?: boolean;
+  format?: string;
   // Wishlist view
   wishlist?: boolean;
   releaseDate?: string | null;
@@ -38,6 +40,7 @@ export default function GameCard({
   statusBadgeEnabled = false,
   statusColors,
   dimCompleted = false,
+  format = "Physical",
   wishlist = false,
   releaseDate = null,
 }: GameCardProps) {
@@ -99,6 +102,12 @@ export default function GameCard({
         {!wishlist && statusBadgeEnabled && statusColors && (
           <div className="absolute bottom-2 left-2">
             <StatusMark status={playStatus} colors={statusColors} idSuffix={id} />
+          </div>
+        )}
+
+        {!wishlist && (
+          <div className="absolute bottom-2 right-2">
+            <MediaIcon platform={platform} format={format} />
           </div>
         )}
       </div>
