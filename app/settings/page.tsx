@@ -83,6 +83,13 @@ export default function SettingsPage() {
   const [newUserName, setNewUserName] = useState("");
   const [usersMsg, setUsersMsg] = useState<string | null>(null);
 
+  // Backup & restore
+  const [importFile, setImportFile] = useState<File | null>(null);
+  const [importMode, setImportMode] = useState<"merge" | "replace">("merge");
+  const [instImportFile, setInstImportFile] = useState<File | null>(null);
+  const [backupBusy, setBackupBusy] = useState(false);
+  const [backupMsg, setBackupMsg] = useState<string | null>(null);
+
   useEffect(() => {
     fetch("/api/prefs").then((r) => r.json()).then(setPrefs);
     fetch("/api/settings").then((r) => r.json()).then(setInstance);
@@ -290,6 +297,74 @@ export default function SettingsPage() {
       setAccountMsg(e.message);
     } finally {
       setAccountSaving(false);
+    }
+  }
+
+  async function runImport() {
+    if (!importFile) return;
+    if (
+      importMode === "replace" &&
+      !confirm("Replace deletes ALL your current games first, then imports. Continue?")
+    )
+      return;
+    setBackupBusy(true);
+    setBackupMsg(null);
+    try {
+      let data: unknown;
+      try {
+        data = JSON.parse(await importFile.text());
+      } catch {
+        throw new Error("That file isn't valid JSON.");
+      }
+      const res = await fetch("/api/backup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ mode: importMode, data }),
+      });
+      const r = await res.json();
+      if (!res.ok) throw new Error(r.error ?? "Import failed.");
+      setBackupMsg(
+        `Imported ${r.imported} game${r.imported === 1 ? "" : "s"}` +
+          (r.skipped ? `, skipped ${r.skipped} already present.` : ".") +
+          " Reload to see them."
+      );
+      fetch("/api/prefs").then((x) => x.json()).then(setPrefs);
+    } catch (e: any) {
+      setBackupMsg(e.message);
+    } finally {
+      setBackupBusy(false);
+    }
+  }
+
+  async function runInstanceRestore() {
+    if (!instImportFile) return;
+    if (
+      !confirm(
+        "This wipes EVERY account, all their games, and the instance settings, then restores from the file. Everyone is logged out. Continue?"
+      )
+    )
+      return;
+    setBackupBusy(true);
+    setBackupMsg(null);
+    try {
+      let data: unknown;
+      try {
+        data = JSON.parse(await instImportFile.text());
+      } catch {
+        throw new Error("That file isn't valid JSON.");
+      }
+      const res = await fetch("/api/admin/backup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ data }),
+      });
+      const r = await res.json();
+      if (!res.ok) throw new Error(r.error ?? "Restore failed.");
+      setBackupMsg(`Restored ${r.users} account(s) and ${r.games} game(s). Signing you out…`);
+      setTimeout(() => window.location.assign("/login"), 1200);
+    } catch (e: any) {
+      setBackupMsg(e.message);
+      setBackupBusy(false);
     }
   }
 
@@ -625,6 +700,62 @@ export default function SettingsPage() {
         </button>
       </section>
 
+      {/* --- Backup & restore (per-user) --- */}
+      <section className="rounded-card border border-ink-line bg-ink-soft p-5">
+        <h2 className="font-display text-lg font-bold text-parchment">Backup &amp; restore</h2>
+        <p className="mt-1 text-sm text-mute">
+          Download every game in your account plus your display preferences
+          (including your PSN token) as a JSON file, or restore from one.
+        </p>
+
+        <div className="mt-4">
+          <a href="/api/backup" download className="btn-secondary inline-block text-xs">
+            Download my backup
+          </a>
+        </div>
+
+        <div className="mt-5 space-y-2">
+          <label className="label">Restore from a file</label>
+          <input
+            type="file"
+            accept="application/json,.json"
+            onChange={(e) => setImportFile(e.target.files?.[0] ?? null)}
+            className="block w-full text-xs text-mute file:mr-3 file:rounded file:border file:border-ink-line file:bg-ink file:px-2 file:py-1 file:text-parchment"
+          />
+          <div className="flex flex-wrap gap-4 pt-1 text-xs text-parchment">
+            <label className="flex items-center gap-1.5">
+              <input
+                type="radio"
+                name="importmode"
+                checked={importMode === "merge"}
+                onChange={() => setImportMode("merge")}
+                className="accent-amber"
+              />
+              Merge — add games that aren&rsquo;t already here
+            </label>
+            <label className="flex items-center gap-1.5">
+              <input
+                type="radio"
+                name="importmode"
+                checked={importMode === "replace"}
+                onChange={() => setImportMode("replace")}
+                className="accent-amber"
+              />
+              Replace — wipe my games first
+            </label>
+          </div>
+          <button
+            type="button"
+            onClick={runImport}
+            disabled={!importFile || backupBusy}
+            className="btn-primary text-xs"
+          >
+            {backupBusy ? "Working…" : "Import"}
+          </button>
+          {backupMsg && <p className="text-xs text-amber">{backupMsg}</p>}
+        </div>
+      </section>
+
       {instance.isAdmin && (
         <>
           <div className="pt-2">
@@ -694,6 +825,46 @@ export default function SettingsPage() {
                   )}
                 </div>
               ))}
+            </div>
+          </section>
+
+          {/* --- Full instance backup --- */}
+          <section className="rounded-card border border-ink-line bg-ink-soft p-5">
+            <h2 className="font-display text-lg font-bold text-parchment">
+              Full instance backup
+            </h2>
+            <p className="mt-1 text-sm text-mute">
+              Everything: every account (with password hashes and PSN tokens),
+              all their games, and the integration settings. For disaster
+              recovery — restoring wipes the instance and logs everyone out.
+            </p>
+
+            <div className="mt-4">
+              <a
+                href="/api/admin/backup"
+                download
+                className="btn-secondary inline-block text-xs"
+              >
+                Download instance backup
+              </a>
+            </div>
+
+            <div className="mt-5 space-y-2">
+              <label className="label">Restore the whole instance</label>
+              <input
+                type="file"
+                accept="application/json,.json"
+                onChange={(e) => setInstImportFile(e.target.files?.[0] ?? null)}
+                className="block w-full text-xs text-mute file:mr-3 file:rounded file:border file:border-ink-line file:bg-ink file:px-2 file:py-1 file:text-parchment"
+              />
+              <button
+                type="button"
+                onClick={runInstanceRestore}
+                disabled={!instImportFile || backupBusy}
+                className="btn-primary text-xs text-red-400"
+              >
+                {backupBusy ? "Working…" : "Wipe & restore instance"}
+              </button>
             </div>
           </section>
 
