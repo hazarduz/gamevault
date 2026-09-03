@@ -31,6 +31,8 @@ interface Instance {
   twitchClientId: string;
   hasTwitchClientSecret: boolean;
   hltbEnabled: boolean;
+  freeGamesEnabled: boolean;
+  freeGamesTtlHours: number;
   steamImportEnabled: boolean;
   hasSteamApiKey: boolean;
   priceChartingEnabled: boolean;
@@ -806,6 +808,36 @@ export default function SettingsPage() {
                 defaultValue={instance.barcodeApiUrl}
                 placeholder="https://api.upcitemdb.com/prod/trial/lookup?upc="
                 onBlur={(e) => saveInstance({ barcodeApiUrl: e.target.value })}
+              />
+            </div>
+          </section>
+
+          {/* --- Currently free --- */}
+          <section className="rounded-card border border-ink-line bg-ink-soft p-5">
+            <div className="flex items-center justify-between">
+              <h2 className="font-display text-lg font-bold text-parchment">Currently free</h2>
+              <Toggle
+                checked={instance.freeGamesEnabled}
+                onChange={(v) => saveInstance({ freeGamesEnabled: v })}
+              />
+            </div>
+            <p className="mt-1 text-sm text-mute">
+              The &ldquo;Currently Free&rdquo; page — free-to-keep games from the
+              Epic Games Store and cross-platform giveaway round-ups (GamerPower).
+              Keyless; no credentials needed.
+            </p>
+            <div className="mt-4 max-w-[12rem]">
+              <label className="label">Refresh interval (hours)</label>
+              <input
+                type="number"
+                min={1}
+                max={168}
+                className="field"
+                defaultValue={instance.freeGamesTtlHours}
+                onBlur={(e) => {
+                  const n = Math.min(168, Math.max(1, Math.round(Number(e.target.value))));
+                  if (Number.isFinite(n)) saveInstance({ freeGamesTtlHours: n });
+                }}
               />
             </div>
           </section>

@@ -136,6 +136,12 @@ model Settings {
 
   hltbEnabled        Boolean @default(true)
 
+  // "Currently Free" page. The feed is cached in FreeGamesCache and
+  // refreshed on the first page visit after it's older than this many
+  // hours (plus a manual "Refresh now" button).
+  freeGamesEnabled   Boolean @default(true)
+  freeGamesTtlHours  Int     @default(3)
+
   // Steam library import. The key is a single Steam Web API key for the
   // whole instance (https://steamcommunity.com/dev/apikey); each user
   // supplies their own SteamID in their personal settings.
@@ -160,5 +166,16 @@ model Settings {
   statusColors       String?
   dimCompleted       Boolean @default(true)
 
+  updatedAt DateTime @updatedAt
+}
+
+// Single-row cache (id is always "singleton") for the "Currently Free"
+// feed. `payload` holds { items: FreeGame[], sourceErrors: [...] } as
+// built by lib/free-games.ts. Refreshed when `fetchedAt` is older than
+// Settings.freeGamesTtlHours, or on demand via the Refresh button.
+model FreeGamesCache {
+  id        String   @id @default("singleton")
+  payload   Json
+  fetchedAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }

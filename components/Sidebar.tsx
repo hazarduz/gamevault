@@ -10,9 +10,9 @@ interface PlatformCount {
   count: number;
 }
 
-// Nav is alphabetical: Collection, Discover, Platforms, Release Calendar,
-// Settings, Wishlist. "Platforms" is a collapsible group that filters the
-// home grid via ?platform=.
+// Nav is alphabetical: Collection, Currently Free, Discover, Indie
+// Discover, Platforms, Release Calendar, Settings, Wishlist. "Platforms"
+// is a collapsible group that filters the home grid via ?platform=.
 export default function Sidebar() {
   const pathname = usePathname();
   const [platforms, setPlatforms] = useState<PlatformCount[]>([]);
@@ -34,6 +34,8 @@ export default function Sidebar() {
   const nav = (
     <nav className="flex flex-col gap-1 text-sm">
       <NavLink href="/" label="Collection" pathname={pathname} exact />
+
+      <NavLink href="/free" label="Currently Free" pathname={pathname} />
 
       <NavLink href="/discover" label="Discover" pathname={pathname} exact />
       <NavLink href="/indie" label="Indie Discover" pathname={pathname} />

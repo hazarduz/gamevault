@@ -18,6 +18,8 @@ export async function updateSettings(data: {
   twitchClientId?: string | null;
   twitchClientSecret?: string | null;
   hltbEnabled?: boolean;
+  freeGamesEnabled?: boolean;
+  freeGamesTtlHours?: number;
   steamImportEnabled?: boolean;
   steamApiKey?: string | null;
   priceChartingEnabled?: boolean;

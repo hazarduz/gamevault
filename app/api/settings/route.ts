@@ -17,6 +17,8 @@ function serialize(
     twitchClientId: settings.twitchClientId ?? "",
     hasTwitchClientSecret: !!settings.twitchClientSecret,
     hltbEnabled: settings.hltbEnabled,
+    freeGamesEnabled: settings.freeGamesEnabled,
+    freeGamesTtlHours: settings.freeGamesTtlHours,
     steamImportEnabled: settings.steamImportEnabled,
     hasSteamApiKey: !!(settings.steamApiKey || process.env.STEAM_API_KEY),
     priceChartingEnabled: settings.priceChartingEnabled,
@@ -48,6 +50,11 @@ export async function PATCH(req: NextRequest) {
 
   if (typeof body.igdbEnabled === "boolean") data.igdbEnabled = body.igdbEnabled;
   if (typeof body.hltbEnabled === "boolean") data.hltbEnabled = body.hltbEnabled;
+  if (typeof body.freeGamesEnabled === "boolean")
+    data.freeGamesEnabled = body.freeGamesEnabled;
+  if (typeof body.freeGamesTtlHours === "number" && Number.isFinite(body.freeGamesTtlHours)) {
+    data.freeGamesTtlHours = Math.min(168, Math.max(1, Math.round(body.freeGamesTtlHours)));
+  }
   if (typeof body.steamImportEnabled === "boolean")
     data.steamImportEnabled = body.steamImportEnabled;
   // Only overwrite the key if a new one was actually typed in — an empty

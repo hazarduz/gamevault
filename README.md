@@ -31,6 +31,11 @@ account has its own completely separate collection.
   user pastes their SteamID in Settings and pulls their owned games in, matched
   against IGDB for art and metadata. Games come in as Digital / PC, and a re-scan
   skips anything already imported.
+- **Currently Free** — a page of free-to-keep games from the Epic Games Store and
+  cross-platform giveaway round-ups (GamerPower). Cached in the database and
+  refreshed on the first visit after it goes stale (interval set in Settings,
+  default 3h), with a "Refresh now" button. Cards flag anything already in your
+  collection or wishlist.
 - **Wishlist** — games you want, kept off the main grid. "Move to collection"
   when you buy one.
 - **Release Calendar** — upcoming games from IGDB, grouped by date, filtered to
@@ -94,10 +99,10 @@ account has its own completely separate collection.
   colours, "dim completed" toggle, PlayStation Online ID + NPSSO token, and your
   own username/password.
 - **Site settings** (admin only): enable/disable IGDB, HowLongToBeat,
-  PriceCharting, Steam import and the barcode lookup; the Twitch/IGDB credentials;
-  the Steam Web API key; the currency conversion API URL; the barcode API URL.
-  These are instance-wide and stored in the database (taking priority over
-  `.env`).
+  PriceCharting, Steam import, the Currently Free page and the barcode lookup;
+  the Twitch/IGDB credentials; the Steam Web API key; the Currently Free refresh
+  interval; the currency conversion API URL; the barcode API URL. These are
+  instance-wide and stored in the database (taking priority over `.env`).
 
 ## How the data sources work
 
@@ -118,6 +123,12 @@ Steam is the exception — **`lib/steam.ts`** uses the official Steam Web API
 https://steamcommunity.com/dev/apikey, set in Settings or as `STEAM_API_KEY`, and
 the target profile's "Game details" privacy set to Public.
 
+- **`lib/free-games.ts`** merges **`lib/gamerpower.ts`** (GamerPower's keyless
+  giveaways API) and **`lib/epic-free.ts`** (Epic's own `freeGamesPromotions`
+  endpoint), caches the result in the `FreeGamesCache` table, and only refetches
+  once it's older than `Settings.freeGamesTtlHours`. `/api/free-games/refresh`
+  forces it.
+
 If a site changes shape, that one button starts failing and the rest of the app
 keeps working — you can always type the value in. Comments in each file point at
 what to check first.
@@ -134,7 +145,8 @@ npm run dev
 
 ```
 app/
-  page.tsx                   Collection grid (per-user)
+  page.tsx                   Collection grid (per-user, multi-select + bulk remove)
+  free/page.tsx              Currently Free — free-to-keep games, cached feed
   wishlist/page.tsx          Wishlisted games
   calendar/page.tsx          Upcoming releases (IGDB)
   discover/ · indie/         Recommendations from IGDB similar_games
@@ -147,6 +159,7 @@ app/
   api/enrich/price · hltb/   PriceCharting / HowLongToBeat
   api/psn/scan · apply/      PlayStation platinum sync
   api/steam/scan/            Steam owned-games list (matched client-side)
+  api/free-games/refresh/    Force-refresh the Currently Free feed
   api/wishlist/ · platforms/ Wishlist add / owned-platform list
   api/prefs/ · settings/     Per-user prefs / instance settings (admin PATCH)
   api/admin/users/           Invite / regenerate / delete users
@@ -155,6 +168,7 @@ lib/
   igdb.ts                    IGDB client — search, detail, upcoming, similar
   pricecharting.ts hltb.ts   Value & completion-time lookups
   psn.ts steam.ts barcode.ts PSN trophies / Steam library / barcode -> name
+  free-games.ts gamerpower.ts epic-free.ts   Currently Free feed + its sources
   score-badge.ts play-status.ts media.ts   Badge / status / media helpers
   tenant.ts prefs.ts         Multi-user bootstrap + per-user preferences
   session.ts settings.ts     Current user / instance config
