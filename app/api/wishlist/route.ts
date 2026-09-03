@@ -3,9 +3,10 @@ import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
 
-// POST /api/wishlist { igdbId, platform }
-// Creates a wishlist Game row from IGDB detail. Used by the Calendar and
-// Discover "Wishlist" buttons.
+// POST /api/wishlist { igdbId, platform, wishlist? }
+// Creates a Game row from IGDB detail. wishlist defaults to true; the
+// Discover page passes wishlist:false for "Add to collection". Used by
+// the Calendar and Discover buttons.
 export async function POST(req: NextRequest) {
   let body: any;
   try {
@@ -16,6 +17,7 @@ export async function POST(req: NextRequest) {
 
   const igdbId = Number(body?.igdbId);
   const platform = typeof body?.platform === "string" ? body.platform.trim() : "";
+  const wishlist = body?.wishlist !== false; // default true
   if (!Number.isInteger(igdbId) || igdbId <= 0 || !platform) {
     return NextResponse.json(
       { error: "igdbId (number) and platform (string) are required" },
@@ -43,7 +45,7 @@ export async function POST(req: NextRequest) {
       data: {
         title: detail.title,
         platform,
-        wishlist: true,
+        wishlist,
         igdbId: detail.igdbId,
         coverUrl: detail.coverUrl,
         releaseDate: detail.releaseDate ? new Date(detail.releaseDate) : null,
@@ -55,7 +57,10 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    return NextResponse.json({ id: game.id, title: game.title }, { status: 201 });
+    return NextResponse.json(
+      { id: game.id, title: game.title, wishlist: game.wishlist },
+      { status: 201 }
+    );
   } catch (e: any) {
     return NextResponse.json({ error: e?.message || String(e) }, { status: 502 });
   }

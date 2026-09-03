@@ -151,6 +151,17 @@ function coverUrl(imageId: string | undefined): string | null {
     : null;
 }
 
+// Bounds a slow/hung IGDB call so a page renders an error notice instead
+// of hanging until the reverse proxy times out.
+function withTimeout<T>(work: Promise<T>, ms: number, label: string): Promise<T> {
+  return Promise.race([
+    work,
+    new Promise<T>((_, reject) =>
+      setTimeout(() => reject(new Error(`${label} timed out after ${ms / 1000}s.`)), ms)
+    ),
+  ]);
+}
+
 export interface UpcomingRelease {
   igdbId: number;
   title: string;
@@ -161,33 +172,43 @@ export interface UpcomingRelease {
 }
 
 // Games with a first release date in the near future. Used by the
-// Release Calendar. category = 0 keeps it to base games; version_parent
-// excludes edition re-releases.
+// Release Calendar.
 export async function getUpcomingReleases(
   monthsAhead = 9
 ): Promise<UpcomingRelease[]> {
   const now = Math.floor(Date.now() / 1000);
   const until = now + monthsAhead * 30 * 24 * 60 * 60;
 
-  const results: any[] = await igdbQuery(
-    "games",
-    `where first_release_date > ${now}
-       & first_release_date < ${until}
-       & category = 0
-       & cover != null;
-     fields name, first_release_date, cover.image_id, platforms.name, hypes;
-     sort first_release_date asc;
-     limit 500;`
+  const results: any[] = await withTimeout(
+    igdbQuery(
+      "games",
+      `where first_release_date > ${now}
+         & first_release_date < ${until}
+         & cover != null;
+       fields name, first_release_date, cover.image_id, platforms.name, hypes, category;
+       sort first_release_date asc;
+       limit 400;`
+    ),
+    25_000,
+    "IGDB release calendar"
   );
 
-  return results.map((g) => ({
-    igdbId: g.id,
-    title: g.name,
-    coverUrl: coverUrl(g.cover?.image_id),
-    releaseDate: new Date(g.first_release_date * 1000).toISOString(),
-    platforms: (g.platforms ?? []).map((p: any) => p.name),
-    hypes: typeof g.hypes === "number" ? g.hypes : 0,
-  }));
+  return results
+    .filter((g) => {
+      // category 0 = main game; keep those plus rows with no category set.
+      const cat = g.category;
+      const okType = cat === undefined || cat === null || cat === 0;
+      const ts = Number(g.first_release_date);
+      return okType && Number.isFinite(ts) && ts > 0;
+    })
+    .map((g) => ({
+      igdbId: g.id,
+      title: g.name,
+      coverUrl: coverUrl(g.cover?.image_id),
+      releaseDate: new Date(Number(g.first_release_date) * 1000).toISOString(),
+      platforms: (g.platforms ?? []).map((p: any) => p.name).filter(Boolean),
+      hypes: typeof g.hypes === "number" ? g.hypes : 0,
+    }));
 }
 
 export interface SimilarSuggestion {
@@ -209,11 +230,15 @@ export async function getSimilarGamesForCollection(
 ): Promise<SimilarSuggestion[]> {
   if (ownedIgdbIds.length === 0) return [];
 
-  const owned: any[] = await igdbQuery(
-    "games",
-    `where id = (${ownedIgdbIds.join(",")});
-     fields similar_games;
-     limit 500;`
+  const owned: any[] = await withTimeout(
+    igdbQuery(
+      "games",
+      `where id = (${ownedIgdbIds.join(",")});
+       fields similar_games;
+       limit 500;`
+    ),
+    25_000,
+    "IGDB discover"
   );
 
   const tally = new Map<number, number>();

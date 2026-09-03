@@ -39,12 +39,22 @@ export default async function CalendarPage() {
         <p className="mt-6 rounded-md border border-ink-line bg-ink-soft px-3 py-2 text-sm text-red-400">
           {error}
         </p>
+      ) : releases.length === 0 ? (
+        <p className="mt-6 text-sm text-mute">
+          IGDB returned no upcoming releases. Check that IGDB is enabled in
+          Settings and try again shortly.
+        </p>
       ) : (
-        <CalendarView
-          releases={releases}
-          ownedPlatforms={ownedRows.map((r) => r.platform)}
-          existingIgdbIds={existingRows.map((r) => r.igdbId as number)}
-        />
+        <>
+          <p className="mt-2 text-xs text-mute">
+            {releases.length} upcoming releases in the next 9 months.
+          </p>
+          <CalendarView
+            releases={releases}
+            ownedPlatforms={ownedRows.map((r) => r.platform)}
+            existingIgdbIds={existingRows.map((r) => r.igdbId as number)}
+          />
+        </>
       )}
     </div>
   );

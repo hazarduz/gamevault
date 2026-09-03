@@ -34,7 +34,7 @@ export default function DiscoverGrid({ suggestions }: { suggestions: Suggestion[
   const [busyId, setBusyId] = useState<number | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
 
-  async function wishlist(s: Suggestion) {
+  async function addGame(s: Suggestion, asWishlist: boolean) {
     const platform = choice[s.igdbId] ?? defaultPlatform(s.platforms);
     setBusyId(s.igdbId);
     setMsg(null);
@@ -42,12 +42,16 @@ export default function DiscoverGrid({ suggestions }: { suggestions: Suggestion[
       const res = await fetch("/api/wishlist", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ igdbId: s.igdbId, platform }),
+        body: JSON.stringify({ igdbId: s.igdbId, platform, wishlist: asWishlist }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "Couldn't wishlist that.");
+      if (!res.ok) throw new Error(data.error ?? "Couldn't add that game.");
       setAdded((prev) => new Set(prev).add(s.igdbId));
-      setMsg(`Added "${s.title}" (${platform}) to your wishlist.`);
+      setMsg(
+        `Added "${s.title}" (${platform}) to your ${
+          asWishlist ? "wishlist" : "collection"
+        }.`
+      );
     } catch (e: any) {
       setMsg(e.message);
     } finally {
@@ -89,11 +93,11 @@ export default function DiscoverGrid({ suggestions }: { suggestions: Suggestion[
                 )}
                 <div className="mt-auto flex flex-wrap items-center gap-2 pt-2">
                   {done ? (
-                    <span className="text-xs text-mute">Added to wishlist ✓</span>
+                    <span className="text-xs text-mute">Added ✓</span>
                   ) : (
                     <>
                       <select
-                        className="field w-auto flex-1 text-xs"
+                        className="field w-full text-xs"
                         value={choice[s.igdbId] ?? defaultPlatform(s.platforms)}
                         onChange={(e) =>
                           setChoice((c) => ({ ...c, [s.igdbId]: e.target.value }))
@@ -107,11 +111,19 @@ export default function DiscoverGrid({ suggestions }: { suggestions: Suggestion[
                       </select>
                       <button
                         type="button"
-                        onClick={() => wishlist(s)}
+                        onClick={() => addGame(s, true)}
                         disabled={busyId === s.igdbId}
                         className="btn-primary text-xs"
                       >
-                        {busyId === s.igdbId ? "Adding…" : "Wishlist"}
+                        {busyId === s.igdbId ? "…" : "Wishlist"}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => addGame(s, false)}
+                        disabled={busyId === s.igdbId}
+                        className="btn-secondary text-xs"
+                      >
+                        {busyId === s.igdbId ? "…" : "Add to collection"}
                       </button>
                     </>
                   )}
