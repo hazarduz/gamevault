@@ -83,6 +83,12 @@ model Settings {
   twitchClientId     String?
   twitchClientSecret String?
 
+  // PlayStation trophy sync (see lib/psn.ts). psnNpsso is a secret and
+  // is never returned to the client.
+  psnEnabled  Boolean @default(false)
+  psnOnlineId String?
+  psnNpsso    String?
+
   hltbEnabled        Boolean @default(true)
 
   priceChartingEnabled Boolean @default(true)

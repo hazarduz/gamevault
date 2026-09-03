@@ -14,6 +14,9 @@ interface SettingsShape {
   igdbEnabled: boolean;
   twitchClientId: string;
   hasTwitchClientSecret: boolean;
+  psnEnabled: boolean;
+  psnOnlineId: string;
+  hasPsnNpsso: boolean;
   hltbEnabled: boolean;
   priceChartingEnabled: boolean;
   currencyApiUrl: string;
@@ -24,6 +27,12 @@ interface SettingsShape {
   statusBadgeEnabled: boolean;
   statusColors: Record<PlayStatus, string>;
   dimCompleted: boolean;
+}
+
+interface PsnScan {
+  proposals: { psnName: string; psnPlatform: string; suggestedGameId: string | null }[];
+  games: { id: string; title: string; platform: string }[];
+  platinumCount: number;
 }
 
 export default function SettingsPage() {
@@ -38,6 +47,13 @@ export default function SettingsPage() {
   const [newPassword, setNewPassword] = useState("");
   const [accountMsg, setAccountMsg] = useState<string | null>(null);
   const [accountSaving, setAccountSaving] = useState(false);
+
+  // PlayStation trophy sync
+  const [psnNpssoInput, setPsnNpssoInput] = useState("");
+  const [psnBusy, setPsnBusy] = useState(false);
+  const [psnMsg, setPsnMsg] = useState<string | null>(null);
+  const [psnScan, setPsnScan] = useState<PsnScan | null>(null);
+  const [psnChoices, setPsnChoices] = useState<Record<string, string>>({});
 
   // Local working copies, re-synced whenever settings change (including
   // right after a save, so the saved value wins).
@@ -81,7 +97,62 @@ export default function SettingsPage() {
     saveSettings({ statusColors: DEFAULT_STATUS_COLORS });
   }
 
-  async function saveSettings(patch: Partial<SettingsShape> & { twitchClientSecret?: string }) {
+  async function scanPsn() {
+    setPsnBusy(true);
+    setPsnMsg(null);
+    setPsnScan(null);
+    try {
+      const res = await fetch("/api/psn/scan", { method: "POST" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Scan failed");
+      const scan = data as PsnScan;
+      setPsnScan(scan);
+      const seeded: Record<string, string> = {};
+      for (const p of scan.proposals) {
+        seeded[`${p.psnName}|${p.psnPlatform}`] = p.suggestedGameId ?? "";
+      }
+      setPsnChoices(seeded);
+      setPsnMsg(
+        scan.platinumCount === 0
+          ? "No earned platinums found on that account."
+          : `Found ${scan.platinumCount} platinum${scan.platinumCount === 1 ? "" : "s"}. Review the matches, then Apply.`
+      );
+    } catch (e: any) {
+      setPsnMsg(e.message);
+    } finally {
+      setPsnBusy(false);
+    }
+  }
+
+  async function applyPsn() {
+    const gameIds = Array.from(new Set(Object.values(psnChoices).filter(Boolean)));
+    if (gameIds.length === 0) {
+      setPsnMsg("Nothing selected to apply.");
+      return;
+    }
+    setPsnBusy(true);
+    setPsnMsg(null);
+    try {
+      const res = await fetch("/api/psn/apply", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ gameIds }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Apply failed");
+      setPsnScan(null);
+      setPsnChoices({});
+      setPsnMsg(`Updated ${data.updated} game${data.updated === 1 ? "" : "s"} to Platinum Achieved.`);
+    } catch (e: any) {
+      setPsnMsg(e.message);
+    } finally {
+      setPsnBusy(false);
+    }
+  }
+
+  async function saveSettings(
+    patch: Partial<SettingsShape> & { twitchClientSecret?: string; psnNpsso?: string }
+  ) {
     setSaving(true);
     setStatusMsg(null);
     const res = await fetch("/api/settings", {
@@ -374,6 +445,121 @@ export default function SettingsPage() {
             Reset to defaults
           </button>
         </div>
+      </section>
+
+      {/* --- PlayStation trophies --- */}
+      <section className="rounded-card border border-ink-line bg-ink-soft p-5">
+        <div className="flex items-center justify-between">
+          <h2 className="font-display text-lg font-bold text-parchment">
+            PlayStation trophies
+          </h2>
+          <Toggle
+            checked={settings.psnEnabled}
+            onChange={(v) => saveSettings({ psnEnabled: v })}
+          />
+        </div>
+        <p className="mt-1 text-sm text-mute">
+          Reads your PlayStation trophy progress and lets you mark games where
+          you&rsquo;ve earned the platinum as{" "}
+          <span className="text-parchment">Platinum Achieved</span>.
+        </p>
+        <p className="mt-2 text-xs text-mute">
+          Token: sign in at playstation.com, then open{" "}
+          <a
+            className="text-amber underline"
+            href="https://ca.account.sony.com/api/v1/ssocookie"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            ca.account.sony.com/api/v1/ssocookie
+          </a>{" "}
+          and copy the <code>npsso</code> value. It lasts about two months.
+        </p>
+
+        <div className="mt-4 grid grid-cols-2 gap-4">
+          <div>
+            <label className="label">PSN Online ID</label>
+            <input
+              className="field"
+              defaultValue={settings.psnOnlineId}
+              onBlur={(e) => saveSettings({ psnOnlineId: e.target.value })}
+            />
+          </div>
+          <div>
+            <label className="label">
+              NPSSO token{" "}
+              {settings.hasPsnNpsso && (
+                <span className="text-xs text-mute">(currently set)</span>
+              )}
+            </label>
+            <input
+              type="password"
+              className="field"
+              placeholder={settings.hasPsnNpsso ? "••••••••" : ""}
+              value={psnNpssoInput}
+              onChange={(e) => setPsnNpssoInput(e.target.value)}
+              onBlur={() =>
+                psnNpssoInput && saveSettings({ psnNpsso: psnNpssoInput })
+              }
+            />
+          </div>
+        </div>
+
+        <div className="mt-4 flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={scanPsn}
+            disabled={psnBusy || !settings.psnEnabled}
+            className="btn-secondary text-xs"
+          >
+            {psnBusy ? "Working…" : "Scan for platinums"}
+          </button>
+          {psnMsg && <span className="text-xs text-amber">{psnMsg}</span>}
+        </div>
+
+        {psnScan && psnScan.proposals.length > 0 && (
+          <div className="mt-4 space-y-2">
+            {psnScan.proposals.map((p) => {
+              const rowKey = `${p.psnName}|${p.psnPlatform}`;
+              return (
+              <div
+                key={rowKey}
+                className="grid grid-cols-1 gap-1 sm:grid-cols-[1fr_1fr] sm:items-center sm:gap-3"
+              >
+                <span className="text-sm text-parchment">
+                  {p.psnName}
+                  <span className="text-xs text-mute"> · {p.psnPlatform}</span>
+                </span>
+                <select
+                  className="field"
+                  value={psnChoices[rowKey] ?? ""}
+                  onChange={(e) =>
+                    setPsnChoices((c) => ({ ...c, [rowKey]: e.target.value }))
+                  }
+                >
+                  <option value="">— skip —</option>
+                  {psnScan.games.map((g) => (
+                    <option key={g.id} value={g.id}>
+                      {g.title} — {g.platform}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              );
+            })}
+
+            <div className="pt-2">
+              <button
+                type="button"
+                onClick={applyPsn}
+                disabled={psnBusy}
+                className="btn-primary text-xs"
+              >
+                Apply selected
+              </button>
+            </div>
+          </div>
+        )}
       </section>
 
       {/* --- Barcode lookup --- */}

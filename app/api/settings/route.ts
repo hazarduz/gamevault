@@ -14,6 +14,9 @@ function serialize(settings: Awaited<ReturnType<typeof getSettings>>) {
     igdbEnabled: settings.igdbEnabled,
     twitchClientId: settings.twitchClientId ?? "",
     hasTwitchClientSecret: !!settings.twitchClientSecret,
+    psnEnabled: settings.psnEnabled,
+    psnOnlineId: settings.psnOnlineId ?? "",
+    hasPsnNpsso: !!settings.psnNpsso,
     hltbEnabled: settings.hltbEnabled,
     priceChartingEnabled: settings.priceChartingEnabled,
     currencyApiUrl: settings.currencyApiUrl ?? "",
@@ -52,6 +55,13 @@ export async function PATCH(req: NextRequest) {
     data.twitchClientSecret = body.twitchClientSecret;
   }
   if (typeof body.currencyApiUrl === "string") data.currencyApiUrl = body.currencyApiUrl || null;
+
+  if (typeof body.psnEnabled === "boolean") data.psnEnabled = body.psnEnabled;
+  if (typeof body.psnOnlineId === "string") data.psnOnlineId = body.psnOnlineId || null;
+  // Only overwrite the token if a new one was actually typed in.
+  if (typeof body.psnNpsso === "string" && body.psnNpsso !== "") {
+    data.psnNpsso = body.psnNpsso;
+  }
 
   if (typeof body.scoreBadgeEnabled === "boolean")
     data.scoreBadgeEnabled = body.scoreBadgeEnabled;

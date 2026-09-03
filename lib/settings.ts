@@ -27,6 +27,9 @@ export async function updateSettings(data: {
   statusBadgeEnabled?: boolean;
   statusColors?: string | null;
   dimCompleted?: boolean;
+  psnEnabled?: boolean;
+  psnOnlineId?: string | null;
+  psnNpsso?: string | null;
 }) {
   await getSettings(); // ensure row exists first
   return prisma.settings.update({
