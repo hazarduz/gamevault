@@ -145,7 +145,7 @@ export default function GameDetailPage({ params }: { params: { id: string } }) {
   if (!game) return <p className="text-mute">Game not found.</p>;
 
   return (
-    <div className="grid gap-8 md:grid-cols-[240px_1fr]">
+    <div className="mx-auto grid max-w-5xl gap-8 md:grid-cols-[240px_1fr]">
       <div>
         <div className="relative aspect-[3/4] w-full overflow-hidden rounded-card border border-ink-line bg-ink-soft">
           {game.coverUrl && (

@@ -29,7 +29,7 @@ export default function RootLayout({
       <body className="bg-ink font-body text-parchment min-h-screen">
         <Sidebar />
         <main className="min-h-screen px-4 pb-24 pt-[68px] sm:px-6 lg:ml-56 lg:px-8 lg:pt-8">
-          <div className="mx-auto max-w-6xl">{children}</div>
+          {children}
         </main>
       </body>
     </html>

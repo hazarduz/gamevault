@@ -31,7 +31,7 @@ export default async function CalendarPage() {
   ]);
 
   return (
-    <div>
+    <div className="max-w-3xl">
       <h1 className="font-display text-2xl font-bold text-parchment">
         Release Calendar
       </h1>

@@ -35,7 +35,7 @@ export default async function IndieDiscoverPage() {
       <h1 className="font-display text-2xl font-bold text-parchment">
         Indie Discover
       </h1>
-      <p className="mt-1 text-sm text-mute">
+      <p className="mt-1 max-w-2xl text-sm text-mute">
         Similar-games suggestions filtered to IGDB&rsquo;s Indie genre, with the
         big publishers (EA, Ubisoft, Activision, Nintendo, Sony, Microsoft…)
         dropped. Takes a few seconds.

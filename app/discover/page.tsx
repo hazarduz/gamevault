@@ -31,7 +31,7 @@ export default async function DiscoverPage() {
   return (
     <div>
       <h1 className="font-display text-2xl font-bold text-parchment">Discover</h1>
-      <p className="mt-1 text-sm text-mute">
+      <p className="mt-1 max-w-2xl text-sm text-mute">
         Games IGDB lists as similar to the ones you own, ranked by how often they
         recur. This can take a few seconds to load.
       </p>

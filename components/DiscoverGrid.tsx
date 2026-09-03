@@ -107,7 +107,7 @@ export default function DiscoverGrid({ suggestions }: { suggestions: Suggestion[
         )}
       </div>
       {msg && <p className="mb-4 text-sm text-amber">{msg}</p>}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="grid gap-4 [grid-template-columns:repeat(auto-fill,minmax(300px,1fr))]">
         {visible.map((s) => {
           const done = added.has(s.igdbId);
           return (
