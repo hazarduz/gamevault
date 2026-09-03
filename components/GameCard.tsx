@@ -4,6 +4,7 @@ import { pickScoreBand, type ScoreBand } from "@/lib/score-badge";
 import type { PlayStatus } from "@/lib/play-status";
 import StatusMark from "@/components/StatusMark";
 import MediaIcon from "@/components/MediaIcon";
+import PlatformIcon from "@/components/PlatformIcon";
 
 interface GameCardProps {
   id: string;
@@ -83,6 +84,10 @@ export default function GameCard({
 
         {dimmed && <div className="absolute inset-0 bg-black/60" />}
 
+        <div className="absolute left-2 top-2">
+          <PlatformIcon platform={platform} />
+        </div>
+
         {wishlist && (
           <span className="absolute right-2 top-2 rounded-full bg-amber/90 px-2 py-0.5 font-display text-[10px] font-bold uppercase tracking-wide text-ink">
             Wishlist
@@ -115,7 +120,6 @@ export default function GameCard({
         <h3 className="line-clamp-2 font-display text-sm font-medium leading-snug text-parchment">
           {title}
         </h3>
-        <p className="text-xs text-mute">{platform}</p>
         {wishlist ? (
           <p className="mt-auto pt-2 text-xs text-mute">{releaseLabel}</p>
         ) : (
