@@ -15,4 +15,10 @@ RUN npx prisma generate
 RUN npm run build
 
 EXPOSE 3000
-CMD ["sh", "-c", "npx prisma db push --skip-generate && npm run start"]
+# This project deliberately has no migration files (see prisma/schema.prisma).
+# `db push` refuses non-interactively whenever a change *could* lose data —
+# which includes swapping an index (e.g. igdbId's unique -> the per-user
+# compound unique in the multi-user change). --accept-data-loss lets those
+# through. Rebuilds here are always deliberate, so this is safe; just review
+# schema changes before deploying.
+CMD ["sh", "-c", "npx prisma db push --skip-generate --accept-data-loss && npm run start"]
