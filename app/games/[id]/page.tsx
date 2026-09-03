@@ -19,7 +19,8 @@ interface Game {
   genres: string[];
   developer: string | null;
   publisher: string | null;
-  metacriticScore: number | null;
+  igdbId: number | null;
+  aggregatedRating: number | null;
   valueLooseGbp: number | null;
   valueCibGbp: number | null;
   valueNewGbp: number | null;
@@ -36,6 +37,7 @@ export default function GameDetailPage({ params }: { params: { id: string } }) {
   const [loading, setLoading] = useState(true);
   const [priceLoading, setPriceLoading] = useState(false);
   const [hltbLoading, setHltbLoading] = useState(false);
+  const [igdbLoading, setIgdbLoading] = useState(false);
   const [statusMsg, setStatusMsg] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -103,6 +105,28 @@ export default function GameDetailPage({ params }: { params: { id: string } }) {
       setStatusMsg(e.message);
     } finally {
       setHltbLoading(false);
+    }
+  }
+
+  async function refreshIgdbScore() {
+    if (!game?.igdbId) return;
+    setIgdbLoading(true);
+    setStatusMsg(null);
+    try {
+      const res = await fetch(`/api/igdb/search?igdbId=${game.igdbId}`);
+      const detail = await res.json();
+      if (!res.ok) throw new Error(detail.error ?? "IGDB lookup failed");
+      const rating: number | null = detail.aggregatedRating ?? null;
+      await patch({ aggregatedRating: rating });
+      setStatusMsg(
+        rating != null
+          ? `IGDB score updated to ${Math.round(rating)}.`
+          : "IGDB has no critic score for this game yet."
+      );
+    } catch (e: any) {
+      setStatusMsg(e.message);
+    } finally {
+      setIgdbLoading(false);
     }
   }
 
@@ -202,7 +226,24 @@ export default function GameDetailPage({ params }: { params: { id: string } }) {
               )}
             </select>
           </div>
-          <NumberField label="Metacritic score" value={game.metacriticScore} onSave={(v) => patch({ metacriticScore: v })} max={100} />
+          <div>
+            <label className="label">IGDB score</label>
+            <div className="flex items-center gap-2">
+              <span className="field flex-1 tabular-nums">
+                {game.aggregatedRating != null ? Math.round(game.aggregatedRating) : "—"}
+              </span>
+              {game.igdbId != null && (
+                <button
+                  type="button"
+                  onClick={refreshIgdbScore}
+                  disabled={igdbLoading}
+                  className="btn-secondary whitespace-nowrap text-xs"
+                >
+                  {igdbLoading ? "…" : "Refresh"}
+                </button>
+              )}
+            </div>
+          </div>
           <div>
             <label className="label">Condition</label>
             <select

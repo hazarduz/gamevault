@@ -87,5 +87,11 @@ model Settings {
   priceChartingEnabled Boolean @default(true)
   currencyApiUrl       String?
 
+  // Home-page score circles. scoreBadgeBands is a JSON string holding an
+  // array of { min, max, bg, fg } — see lib/score-badge.ts. Null means
+  // "use the built-in defaults".
+  scoreBadgeEnabled Boolean @default(true)
+  scoreBadgeBands   String?
+
   updatedAt DateTime @updatedAt
 }

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { DEFAULT_SCORE_BANDS, type ScoreBand } from "@/lib/score-badge";
 
 interface SettingsShape {
   igdbEnabled: boolean;
@@ -10,6 +11,8 @@ interface SettingsShape {
   hltbEnabled: boolean;
   priceChartingEnabled: boolean;
   currencyApiUrl: string;
+  scoreBadgeEnabled: boolean;
+  scoreBadgeBands: ScoreBand[];
 }
 
 export default function SettingsPage() {
@@ -25,11 +28,33 @@ export default function SettingsPage() {
   const [accountMsg, setAccountMsg] = useState<string | null>(null);
   const [accountSaving, setAccountSaving] = useState(false);
 
+  // Local working copy of the score bands. Re-synced whenever settings
+  // change (including right after a save, so the saved value wins).
+  const [bands, setBands] = useState<ScoreBand[]>([]);
+
   useEffect(() => {
     fetch("/api/settings")
       .then((r) => r.json())
       .then(setSettings);
   }, []);
+
+  useEffect(() => {
+    if (settings) setBands(settings.scoreBadgeBands);
+  }, [settings]);
+
+  function updateBand(index: number, patch: Partial<ScoreBand>) {
+    setBands((bs) => bs.map((b, i) => (i === index ? { ...b, ...patch } : b)));
+  }
+  function removeBand(index: number) {
+    setBands((bs) => bs.filter((_, i) => i !== index));
+  }
+  function addBand() {
+    setBands((bs) => [...bs, { min: 0, max: 100, bg: "#000000", fg: "#ffffff" }]);
+  }
+  function resetBands() {
+    setBands(DEFAULT_SCORE_BANDS);
+    saveSettings({ scoreBadgeBands: DEFAULT_SCORE_BANDS });
+  }
 
   async function saveSettings(patch: Partial<SettingsShape> & { twitchClientSecret?: string }) {
     setSaving(true);
@@ -172,6 +197,101 @@ export default function SettingsPage() {
         </div>
       </section>
 
+      {/* --- Score badges --- */}
+      <section className="rounded-card border border-ink-line bg-ink-soft p-5">
+        <div className="flex items-center justify-between">
+          <h2 className="font-display text-lg font-bold text-parchment">Score badges</h2>
+          <Toggle
+            checked={settings.scoreBadgeEnabled}
+            onChange={(v) => saveSettings({ scoreBadgeEnabled: v })}
+          />
+        </div>
+        <p className="mt-1 text-sm text-mute">
+          The circle on each cover on the home page shows that game&rsquo;s IGDB
+          score. Pick the circle and text colour for each score range.
+        </p>
+
+        <div className="mt-4 space-y-2">
+          <div className="grid grid-cols-[2.25rem_1fr_1fr_auto_auto_1.5rem] items-center gap-2 text-xs text-mute">
+            <span />
+            <span>Min</span>
+            <span>Max</span>
+            <span>Circle</span>
+            <span>Text</span>
+            <span />
+          </div>
+          {bands.map((band, i) => (
+            <div
+              key={i}
+              className="grid grid-cols-[2.25rem_1fr_1fr_auto_auto_1.5rem] items-center gap-2"
+            >
+              <span
+                className="flex h-9 w-9 items-center justify-center rounded-full font-display text-xs font-bold ring-1 ring-black/20"
+                style={{ backgroundColor: band.bg, color: band.fg }}
+              >
+                {band.max}
+              </span>
+              <input
+                type="number"
+                min={0}
+                max={100}
+                className="field"
+                value={band.min}
+                onChange={(e) =>
+                  updateBand(i, { min: clampScore(parseInt(e.target.value, 10)) })
+                }
+              />
+              <input
+                type="number"
+                min={0}
+                max={100}
+                className="field"
+                value={band.max}
+                onChange={(e) =>
+                  updateBand(i, { max: clampScore(parseInt(e.target.value, 10)) })
+                }
+              />
+              <input
+                type="color"
+                className="h-9 w-12 cursor-pointer rounded border border-ink-line bg-ink-soft"
+                value={band.bg}
+                onChange={(e) => updateBand(i, { bg: e.target.value })}
+              />
+              <input
+                type="color"
+                className="h-9 w-12 cursor-pointer rounded border border-ink-line bg-ink-soft"
+                value={band.fg}
+                onChange={(e) => updateBand(i, { fg: e.target.value })}
+              />
+              <button
+                type="button"
+                onClick={() => removeBand(i)}
+                className="text-mute transition hover:text-red-400"
+                aria-label="Remove band"
+              >
+                ✕
+              </button>
+            </div>
+          ))}
+        </div>
+
+        <div className="mt-4 flex flex-wrap gap-2">
+          <button type="button" onClick={addBand} className="btn-secondary text-xs">
+            + Add band
+          </button>
+          <button
+            type="button"
+            onClick={() => saveSettings({ scoreBadgeBands: bands })}
+            className="btn-primary text-xs"
+          >
+            Save badge colours
+          </button>
+          <button type="button" onClick={resetBands} className="btn-secondary text-xs">
+            Reset to defaults
+          </button>
+        </div>
+      </section>
+
       {/* --- Account --- */}
       <section className="rounded-card border border-ink-line bg-ink-soft p-5">
         <h2 className="font-display text-lg font-bold text-parchment">Account</h2>
@@ -217,6 +337,11 @@ export default function SettingsPage() {
       </section>
     </div>
   );
+}
+
+function clampScore(n: number): number {
+  if (!Number.isFinite(n)) return 0;
+  return Math.min(100, Math.max(0, Math.round(n)));
 }
 
 function Toggle({ checked, onChange }: { checked: boolean; onChange: (v: boolean) => void }) {

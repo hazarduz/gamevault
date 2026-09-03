@@ -1,5 +1,6 @@
 import Link from "next/link";
 import Image from "next/image";
+import { pickScoreBand, type ScoreBand } from "@/lib/score-badge";
 
 interface GameCardProps {
   id: string;
@@ -8,7 +9,9 @@ interface GameCardProps {
   coverUrl: string | null;
   valueCibGbp: number | null;
   valueLooseGbp: number | null;
-  metacriticScore: number | null;
+  score: number | null;
+  scoreBadgeEnabled: boolean;
+  scoreBands: ScoreBand[];
 }
 
 export default function GameCard({
@@ -18,9 +21,12 @@ export default function GameCard({
   coverUrl,
   valueCibGbp,
   valueLooseGbp,
-  metacriticScore,
+  score,
+  scoreBadgeEnabled,
+  scoreBands,
 }: GameCardProps) {
   const value = valueCibGbp ?? valueLooseGbp;
+  const band = scoreBadgeEnabled ? pickScoreBand(score, scoreBands) : null;
 
   return (
     <Link
@@ -41,9 +47,13 @@ export default function GameCard({
             {title}
           </div>
         )}
-        {metacriticScore !== null && (
-          <span className="absolute right-2 top-2 rounded bg-ink/90 px-1.5 py-0.5 font-display text-xs font-bold text-amber">
-            {metacriticScore}
+        {band && score !== null && (
+          <span
+            className="absolute right-2 top-2 flex h-9 w-9 items-center justify-center rounded-full font-display text-xs font-bold shadow-md ring-1 ring-black/20"
+            style={{ backgroundColor: band.bg, color: band.fg }}
+            title={`IGDB score ${Math.round(score)}`}
+          >
+            {Math.round(score)}
           </span>
         )}
       </div>

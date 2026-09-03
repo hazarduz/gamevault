@@ -20,6 +20,8 @@ export async function updateSettings(data: {
   hltbEnabled?: boolean;
   priceChartingEnabled?: boolean;
   currencyApiUrl?: string | null;
+  scoreBadgeEnabled?: boolean;
+  scoreBadgeBands?: string | null;
 }) {
   await getSettings(); // ensure row exists first
   return prisma.settings.update({

@@ -1,23 +1,31 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSettings, updateSettings } from "@/lib/settings";
 import { getCurrentUser } from "@/lib/session";
+import { parseScoreBands, sanitizeScoreBands } from "@/lib/score-badge";
 
 export const dynamic = "force-dynamic";
 
-export async function GET() {
-  const user = await getCurrentUser();
-  if (!user) return NextResponse.json({ error: "Not signed in." }, { status: 401 });
-
-  const settings = await getSettings();
-  // Never send the actual secret back to the client — just whether one is set.
-  return NextResponse.json({
+// Shape sent to the client. The secret is never included — only whether
+// one is set — and score bands are sent resolved (defaults applied) so
+// the client never has to parse the stored JSON string.
+function serialize(settings: Awaited<ReturnType<typeof getSettings>>) {
+  return {
     igdbEnabled: settings.igdbEnabled,
     twitchClientId: settings.twitchClientId ?? "",
     hasTwitchClientSecret: !!settings.twitchClientSecret,
     hltbEnabled: settings.hltbEnabled,
     priceChartingEnabled: settings.priceChartingEnabled,
     currencyApiUrl: settings.currencyApiUrl ?? "",
-  });
+    scoreBadgeEnabled: settings.scoreBadgeEnabled,
+    scoreBadgeBands: parseScoreBands(settings.scoreBadgeBands),
+  };
+}
+
+export async function GET() {
+  const user = await getCurrentUser();
+  if (!user) return NextResponse.json({ error: "Not signed in." }, { status: 401 });
+
+  return NextResponse.json(serialize(await getSettings()));
 }
 
 export async function PATCH(req: NextRequest) {
@@ -39,13 +47,14 @@ export async function PATCH(req: NextRequest) {
   }
   if (typeof body.currencyApiUrl === "string") data.currencyApiUrl = body.currencyApiUrl || null;
 
+  if (typeof body.scoreBadgeEnabled === "boolean")
+    data.scoreBadgeEnabled = body.scoreBadgeEnabled;
+  if (Array.isArray(body.scoreBadgeBands)) {
+    const clean = sanitizeScoreBands(body.scoreBadgeBands);
+    // Store null when it sanitises to nothing so the defaults kick back in.
+    data.scoreBadgeBands = clean.length > 0 ? JSON.stringify(clean) : null;
+  }
+
   const updated = await updateSettings(data);
-  return NextResponse.json({
-    igdbEnabled: updated.igdbEnabled,
-    twitchClientId: updated.twitchClientId ?? "",
-    hasTwitchClientSecret: !!updated.twitchClientSecret,
-    hltbEnabled: updated.hltbEnabled,
-    priceChartingEnabled: updated.priceChartingEnabled,
-    currencyApiUrl: updated.currencyApiUrl ?? "",
-  });
+  return NextResponse.json(serialize(updated));
 }
