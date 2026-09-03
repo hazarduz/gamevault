@@ -20,6 +20,7 @@ const STATUS_ORDER: Record<string, number> = {
   unplayed: 0,
   in_progress: 1,
   completed: 2,
+  platinum: 3,
 };
 
 export type SortValue = (typeof SORT_OPTIONS)[number]["value"];

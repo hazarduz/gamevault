@@ -1,7 +1,8 @@
 import Link from "next/link";
 import Image from "next/image";
 import { pickScoreBand, type ScoreBand } from "@/lib/score-badge";
-import { statusColor, type PlayStatus } from "@/lib/play-status";
+import type { PlayStatus } from "@/lib/play-status";
+import StatusMark from "@/components/StatusMark";
 
 interface GameCardProps {
   id: string;
@@ -71,10 +72,9 @@ export default function GameCard({
         )}
 
         {statusBadgeEnabled && (
-          <span
-            className="absolute bottom-2 left-2 h-3.5 w-3.5 rounded-full shadow ring-1 ring-black/30"
-            style={{ backgroundColor: statusColor(playStatus, statusColors) }}
-          />
+          <div className="absolute bottom-2 left-2">
+            <StatusMark status={playStatus} colors={statusColors} idSuffix={id} />
+          </div>
         )}
       </div>
       <div className="flex flex-1 flex-col gap-1 p-3">

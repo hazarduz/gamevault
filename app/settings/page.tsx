@@ -8,6 +8,7 @@ import {
   PLAY_STATUS_OPTIONS,
   type PlayStatus,
 } from "@/lib/play-status";
+import StatusMark from "@/components/StatusMark";
 
 interface SettingsShape {
   igdbEnabled: boolean;
@@ -341,10 +342,9 @@ export default function SettingsPage() {
         <div className="mt-4 space-y-2">
           {PLAY_STATUS_OPTIONS.map((opt) => (
             <div key={opt.value} className="flex items-center gap-3">
-              <span
-                className="h-4 w-4 rounded-full ring-1 ring-black/30"
-                style={{ backgroundColor: statusColors[opt.value] }}
-              />
+              <span className="flex h-6 w-6 items-center justify-center">
+                <StatusMark status={opt.value} colors={statusColors} idSuffix={`set-${opt.value}`} />
+              </span>
               <span className="flex-1 text-sm text-parchment">{opt.label}</span>
               <input
                 type="color"

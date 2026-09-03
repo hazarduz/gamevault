@@ -1,26 +1,38 @@
-// Per-game play status shown as a coloured dot on the bottom-left of each
-// cover on the home page, and (for "completed") a dark overlay. The three
-// dot colours are editable in Settings. Pure module — imported by both
-// server components and client code.
+// Per-game play status shown on the bottom-left of each cover on the home
+// page — a coloured dot for most statuses, a silver trophy for
+// "platinum" (see components/StatusMark.tsx) — plus a dark overlay for
+// "completed". The dot/trophy colours are editable in Settings. Pure
+// module — imported by both server components and client code.
 
-export type PlayStatus = "unplayed" | "in_progress" | "completed";
+export type PlayStatus =
+  | "unplayed"
+  | "in_progress"
+  | "completed"
+  | "platinum";
 
 export const PLAY_STATUS_OPTIONS: { value: PlayStatus; label: string }[] = [
   { value: "unplayed", label: "Unplayed" },
   { value: "in_progress", label: "In Progress" },
   { value: "completed", label: "Completed" },
+  { value: "platinum", label: "Platinum Achieved" },
 ];
 
 export const DEFAULT_STATUS_COLORS: Record<PlayStatus, string> = {
   unplayed: "#6b7280",
   in_progress: "#e3a63e",
   completed: "#22c55e",
+  platinum: "#c9ccd4",
 };
 
 const HEX_COLOUR = /^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;
 
 export function isPlayStatus(v: unknown): v is PlayStatus {
-  return v === "unplayed" || v === "in_progress" || v === "completed";
+  return (
+    v === "unplayed" ||
+    v === "in_progress" ||
+    v === "completed" ||
+    v === "platinum"
+  );
 }
 
 export function statusLabel(status: string): string {
