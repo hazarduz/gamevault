@@ -4,7 +4,11 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
-import { PLATFORM_OPTIONS, pickPreferredPlatform } from "@/lib/platforms";
+import {
+  PLATFORM_OPTIONS,
+  pickPreferredPlatform,
+  isDigitalOnlyPlatform,
+} from "@/lib/platforms";
 import { PLAY_STATUS_OPTIONS } from "@/lib/play-status";
 import BarcodeScanner from "@/components/BarcodeScanner";
 
@@ -81,19 +85,26 @@ export default function AddGamePage() {
       const detail = await res.json();
       if (!res.ok) throw new Error(detail.error ?? "Lookup failed");
 
-      setForm((f) => ({
-        ...f,
-        title: detail.title,
-        igdbId: detail.igdbId,
-        coverUrl: detail.coverUrl ?? "",
-        releaseDate: detail.releaseDate ? detail.releaseDate.slice(0, 10) : "",
-        summary: detail.summary ?? "",
-        genres: detail.genres ?? [],
-        developer: detail.developer ?? "",
-        publisher: detail.publisher ?? "",
-        aggregatedRating: detail.aggregatedRating ?? null,
-        platform: hit.platforms.length > 0 ? pickPreferredPlatform(hit.platforms) : f.platform,
-      }));
+      setForm((f) => {
+        const platform =
+          hit.platforms.length > 0 ? pickPreferredPlatform(hit.platforms) : f.platform;
+        const digital = isDigitalOnlyPlatform(platform);
+        return {
+          ...f,
+          title: detail.title,
+          igdbId: detail.igdbId,
+          coverUrl: detail.coverUrl ?? "",
+          releaseDate: detail.releaseDate ? detail.releaseDate.slice(0, 10) : "",
+          summary: detail.summary ?? "",
+          genres: detail.genres ?? [],
+          developer: detail.developer ?? "",
+          publisher: detail.publisher ?? "",
+          aggregatedRating: detail.aggregatedRating ?? null,
+          platform,
+          format: digital ? "Digital" : f.format,
+          condition: digital ? "" : f.condition,
+        };
+      });
       setResults([]);
     } catch (e: any) {
       setSearchError(e.message);
@@ -215,7 +226,16 @@ export default function AddGamePage() {
                   className="field"
                   required
                   value={form.platform}
-                  onChange={(e) => setForm({ ...form, platform: e.target.value })}
+                  onChange={(e) => {
+                    const platform = e.target.value;
+                    const digital = isDigitalOnlyPlatform(platform);
+                    setForm({
+                      ...form,
+                      platform,
+                      format: digital ? "Digital" : form.format,
+                      condition: digital ? "" : form.condition || "Complete in box",
+                    });
+                  }}
                 >
                   {PLATFORM_OPTIONS.map((p) => (
                     <option key={p} value={p}>
@@ -265,6 +285,7 @@ export default function AddGamePage() {
             <select
               className="field"
               value={form.format}
+              disabled={isDigitalOnlyPlatform(form.platform)}
               onChange={(e) =>
                 setForm({
                   ...form,
@@ -276,6 +297,9 @@ export default function AddGamePage() {
               <option>Physical</option>
               <option>Digital</option>
             </select>
+            {isDigitalOnlyPlatform(form.platform) && (
+              <p className="mt-1 text-xs text-mute">PC games are digital-only.</p>
+            )}
           </div>
           <div>
             <label className="label">Play status</label>

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/session";
+import { formatForPlatform } from "@/lib/platforms";
 
 export const dynamic = "force-dynamic";
 
@@ -35,14 +36,17 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  // PC is digital-only — force it regardless of what the client sent.
+  const format = formatForPlatform(body.platform, body.format);
+
   const game = await prisma.game.create({
     data: {
       userId: user.id,
       title: body.title,
       platform: body.platform,
       region: body.region ?? null,
-      condition: body.condition || null,
-      format: body.format ?? "Physical",
+      condition: format === "Digital" ? null : body.condition || null,
+      format,
       playStatus: body.playStatus ?? "unplayed",
       notes: body.notes ?? null,
       igdbId: body.igdbId ?? null,

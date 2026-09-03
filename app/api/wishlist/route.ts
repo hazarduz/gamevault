@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/session";
+import { formatForPlatform } from "@/lib/platforms";
 
 export const dynamic = "force-dynamic";
 
@@ -52,6 +53,7 @@ export async function POST(req: NextRequest) {
         userId: user.id,
         title: detail.title,
         platform,
+        format: formatForPlatform(platform),
         wishlist,
         igdbId: detail.igdbId,
         coverUrl: detail.coverUrl,

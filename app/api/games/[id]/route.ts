@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/session";
+import { isDigitalOnlyPlatform } from "@/lib/platforms";
 
 // Returns the game only if it belongs to the signed-in user; otherwise a
 // 404 (never reveal that another user's id exists).
@@ -36,6 +37,21 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   const dateFields = ["releaseDate", "datePurchased", "valueUpdatedAt", "hltbUpdatedAt"];
   for (const f of dateFields) {
     if (body[f]) body[f] = new Date(body[f]);
+  }
+
+  // PC is digital-only: whether the platform is being changed to PC now
+  // or the game is already on PC, pin it to Digital and clear the
+  // physical-only fields so an edit can't leave it inconsistent.
+  const effectivePlatform =
+    typeof body.platform === "string" ? body.platform : res.game.platform;
+  if (isDigitalOnlyPlatform(effectivePlatform)) {
+    body.format = "Digital";
+    body.condition = null;
+    body.valueLooseGbp = null;
+    body.valueCibGbp = null;
+    body.valueNewGbp = null;
+    body.valueUpdatedAt = null;
+    body.valueSource = null;
   }
 
   try {

@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
-import { PLATFORM_OPTIONS } from "@/lib/platforms";
+import { PLATFORM_OPTIONS, isDigitalOnlyPlatform } from "@/lib/platforms";
 import { PLAY_STATUS_OPTIONS } from "@/lib/play-status";
 import MediaIcon from "@/components/MediaIcon";
 
@@ -320,6 +320,7 @@ export default function GameDetailPage({ params }: { params: { id: string } }) {
             <select
               className="field"
               value={game.format}
+              disabled={isDigitalOnlyPlatform(game.platform)}
               onChange={(e) =>
                 patch(
                   e.target.value === "Digital"
@@ -342,6 +343,9 @@ export default function GameDetailPage({ params }: { params: { id: string } }) {
               <option>Physical</option>
               <option>Digital</option>
             </select>
+            {isDigitalOnlyPlatform(game.platform) && (
+              <p className="mt-1 text-xs text-mute">PC games are digital-only.</p>
+            )}
           </div>
         </section>
 

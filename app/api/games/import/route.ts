@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/session";
+import { formatForPlatform } from "@/lib/platforms";
 import type { IgdbGameDetail } from "@/lib/igdb";
 
 export const dynamic = "force-dynamic";
@@ -64,8 +65,8 @@ export async function POST(req: NextRequest) {
       const igdbId = Number.isInteger(n) && n > 0 ? n : null;
       const s = Number(raw?.steamAppId);
       const steamAppId = Number.isInteger(s) && s > 0 ? s : null;
-      const format: "Physical" | "Digital" =
-        raw?.format === "Digital" ? "Digital" : "Physical";
+      // PC rows are always Digital regardless of what the caller sent.
+      const format = formatForPlatform(platform, raw?.format);
       const key = `${title.toLowerCase()}|${platform.toLowerCase()}`;
 
       if (steamAppId != null && haveSteam.has(steamAppId)) {

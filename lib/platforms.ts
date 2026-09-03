@@ -95,6 +95,25 @@ export function pricechartingConsoleSlug(platform: string, region?: string | nul
   return base;
 }
 
+// PC has no physical media, so a game on it is always Digital. Matches
+// "PC" plus the parenthesised spellings IGDB uses ("PC (Windows)",
+// "PC (Microsoft Windows)").
+export function isDigitalOnlyPlatform(platform: string | null | undefined): boolean {
+  const p = (platform ?? "").trim().toLowerCase();
+  return p === "pc" || p.startsWith("pc (") || p.startsWith("pc(");
+}
+
+// The format a game on this platform should take. Digital-only platforms
+// force "Digital"; everything else keeps whatever was chosen (falling
+// back to the given default).
+export function formatForPlatform(
+  platform: string | null | undefined,
+  chosen: string | null | undefined = "Physical"
+): "Physical" | "Digital" {
+  if (isDigitalOnlyPlatform(platform)) return "Digital";
+  return chosen === "Digital" ? "Digital" : "Physical";
+}
+
 export function slugifyTitle(title: string): string {
   return title
     .toLowerCase()
