@@ -388,94 +388,104 @@ export default function SettingsPage() {
 
       {statusMsg && <p className="text-sm text-amber">{statusMsg}</p>}
 
-      {/* --- Score badges (per-user) --- */}
+      {/* Personal sections, alphabetical by heading. */}
+
+      {/* --- Account --- */}
       <section className="rounded-card border border-ink-line bg-ink-soft p-5">
-        <div className="flex items-center justify-between">
-          <h2 className="font-display text-lg font-bold text-parchment">Score badges</h2>
-          <Toggle
-            checked={prefs.scoreBadgeEnabled}
-            onChange={(v) => savePrefs({ scoreBadgeEnabled: v })}
-          />
-        </div>
+        <h2 className="font-display text-lg font-bold text-parchment">Account</h2>
+        <form onSubmit={handleAccountSubmit} className="mt-4 space-y-4">
+          <div>
+            <label className="label">Current password</label>
+            <input
+              type="password"
+              required
+              className="field"
+              value={currentPassword}
+              onChange={(e) => setCurrentPassword(e.target.value)}
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="label">New username (optional)</label>
+              <input
+                className="field"
+                value={newUsername}
+                onChange={(e) => setNewUsername(e.target.value)}
+              />
+            </div>
+            <div>
+              <label className="label">New password (optional)</label>
+              <input
+                type="password"
+                className="field"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+              />
+            </div>
+          </div>
+          {accountMsg && <p className="text-sm text-amber">{accountMsg}</p>}
+          <button type="submit" disabled={accountSaving} className="btn-primary">
+            {accountSaving ? "Saving…" : "Update account"}
+          </button>
+        </form>
+        <button onClick={handleLogout} className="btn-secondary mt-4 w-full">
+          Log out
+        </button>
+      </section>
+
+      {/* --- Backup & restore (per-user) --- */}
+      <section className="rounded-card border border-ink-line bg-ink-soft p-5">
+        <h2 className="font-display text-lg font-bold text-parchment">Backup &amp; restore</h2>
         <p className="mt-1 text-sm text-mute">
-          The circle on each cover shows that game&rsquo;s IGDB score. Pick the
-          circle and text colour for each range.
+          Download every game in your account plus your display preferences
+          (including your PSN token) as a JSON file, or restore from one.
         </p>
 
-        <div className="mt-4 space-y-2">
-          <div className="grid grid-cols-[2.25rem_1fr_1fr_auto_auto_1.5rem] items-center gap-2 text-xs text-mute">
-            <span />
-            <span>Min</span>
-            <span>Max</span>
-            <span>Circle</span>
-            <span>Text</span>
-            <span />
-          </div>
-          {bands.map((band, i) => (
-            <div
-              key={i}
-              className="grid grid-cols-[2.25rem_1fr_1fr_auto_auto_1.5rem] items-center gap-2"
-            >
-              <span
-                className="flex h-9 w-9 items-center justify-center rounded-full font-display text-xs font-bold ring-1 ring-black/20"
-                style={{ backgroundColor: band.bg, color: band.fg }}
-              >
-                {band.max}
-              </span>
-              <input
-                type="number"
-                min={0}
-                max={100}
-                className="field"
-                value={band.min}
-                onChange={(e) => updateBand(i, { min: clampScore(parseInt(e.target.value, 10)) })}
-              />
-              <input
-                type="number"
-                min={0}
-                max={100}
-                className="field"
-                value={band.max}
-                onChange={(e) => updateBand(i, { max: clampScore(parseInt(e.target.value, 10)) })}
-              />
-              <input
-                type="color"
-                className="h-9 w-12 cursor-pointer rounded border border-ink-line bg-ink-soft"
-                value={band.bg}
-                onChange={(e) => updateBand(i, { bg: e.target.value })}
-              />
-              <input
-                type="color"
-                className="h-9 w-12 cursor-pointer rounded border border-ink-line bg-ink-soft"
-                value={band.fg}
-                onChange={(e) => updateBand(i, { fg: e.target.value })}
-              />
-              <button
-                type="button"
-                onClick={() => removeBand(i)}
-                className="text-mute transition hover:text-red-400"
-                aria-label="Remove band"
-              >
-                ✕
-              </button>
-            </div>
-          ))}
+        <div className="mt-4">
+          <a href="/api/backup" download className="btn-secondary inline-block text-xs">
+            Download my backup
+          </a>
         </div>
 
-        <div className="mt-4 flex flex-wrap gap-2">
-          <button type="button" onClick={addBand} className="btn-secondary text-xs">
-            + Add band
-          </button>
+        <div className="mt-5 space-y-2">
+          <label className="label">Restore from a file</label>
+          <input
+            type="file"
+            accept="application/json,.json"
+            onChange={(e) => setImportFile(e.target.files?.[0] ?? null)}
+            className="block w-full text-xs text-mute file:mr-3 file:rounded file:border file:border-ink-line file:bg-ink file:px-2 file:py-1 file:text-parchment"
+          />
+          <div className="flex flex-wrap gap-4 pt-1 text-xs text-parchment">
+            <label className="flex items-center gap-1.5">
+              <input
+                type="radio"
+                name="importmode"
+                checked={importMode === "merge"}
+                onChange={() => setImportMode("merge")}
+                className="accent-amber"
+              />
+              Merge — add games that aren&rsquo;t already here
+            </label>
+            <label className="flex items-center gap-1.5">
+              <input
+                type="radio"
+                name="importmode"
+                checked={importMode === "replace"}
+                onChange={() => setImportMode("replace")}
+                className="accent-amber"
+              />
+              Replace — wipe my games first
+            </label>
+          </div>
           <button
             type="button"
-            onClick={() => savePrefs({ scoreBadgeBands: bands })}
+            onClick={runImport}
+            disabled={!importFile || backupBusy}
             className="btn-primary text-xs"
           >
-            Save badge colours
+            {backupBusy ? "Working…" : "Import"}
           </button>
-          <button type="button" onClick={resetBands} className="btn-secondary text-xs">
-            Reset to defaults
-          </button>
+          {backupMsg && <p className="text-xs text-amber">{backupMsg}</p>}
         </div>
       </section>
 
@@ -663,110 +673,102 @@ export default function SettingsPage() {
         )}
       </section>
 
+      {/* --- Score badges (per-user) --- */}
+      <section className="rounded-card border border-ink-line bg-ink-soft p-5">
+        <div className="flex items-center justify-between">
+          <h2 className="font-display text-lg font-bold text-parchment">Score badges</h2>
+          <Toggle
+            checked={prefs.scoreBadgeEnabled}
+            onChange={(v) => savePrefs({ scoreBadgeEnabled: v })}
+          />
+        </div>
+        <p className="mt-1 text-sm text-mute">
+          The circle on each cover shows that game&rsquo;s IGDB score. Pick the
+          circle and text colour for each range.
+        </p>
+
+        <div className="mt-4 space-y-2">
+          <div className="grid grid-cols-[2.25rem_1fr_1fr_auto_auto_1.5rem] items-center gap-2 text-xs text-mute">
+            <span />
+            <span>Min</span>
+            <span>Max</span>
+            <span>Circle</span>
+            <span>Text</span>
+            <span />
+          </div>
+          {bands.map((band, i) => (
+            <div
+              key={i}
+              className="grid grid-cols-[2.25rem_1fr_1fr_auto_auto_1.5rem] items-center gap-2"
+            >
+              <span
+                className="flex h-9 w-9 items-center justify-center rounded-full font-display text-xs font-bold ring-1 ring-black/20"
+                style={{ backgroundColor: band.bg, color: band.fg }}
+              >
+                {band.max}
+              </span>
+              <input
+                type="number"
+                min={0}
+                max={100}
+                className="field"
+                value={band.min}
+                onChange={(e) => updateBand(i, { min: clampScore(parseInt(e.target.value, 10)) })}
+              />
+              <input
+                type="number"
+                min={0}
+                max={100}
+                className="field"
+                value={band.max}
+                onChange={(e) => updateBand(i, { max: clampScore(parseInt(e.target.value, 10)) })}
+              />
+              <input
+                type="color"
+                className="h-9 w-12 cursor-pointer rounded border border-ink-line bg-ink-soft"
+                value={band.bg}
+                onChange={(e) => updateBand(i, { bg: e.target.value })}
+              />
+              <input
+                type="color"
+                className="h-9 w-12 cursor-pointer rounded border border-ink-line bg-ink-soft"
+                value={band.fg}
+                onChange={(e) => updateBand(i, { fg: e.target.value })}
+              />
+              <button
+                type="button"
+                onClick={() => removeBand(i)}
+                className="text-mute transition hover:text-red-400"
+                aria-label="Remove band"
+              >
+                ✕
+              </button>
+            </div>
+          ))}
+        </div>
+
+        <div className="mt-4 flex flex-wrap gap-2">
+          <button type="button" onClick={addBand} className="btn-secondary text-xs">
+            + Add band
+          </button>
+          <button
+            type="button"
+            onClick={() => savePrefs({ scoreBadgeBands: bands })}
+            className="btn-primary text-xs"
+          >
+            Save badge colours
+          </button>
+          <button type="button" onClick={resetBands} className="btn-secondary text-xs">
+            Reset to defaults
+          </button>
+        </div>
+      </section>
+
       {/* --- Steam library import (per-user) --- */}
       <SteamImport
         initialSteamId={prefs.steamId}
         available={instance.steamImportEnabled && instance.hasSteamApiKey}
       />
-
-      {/* --- Account --- */}
-      <section className="rounded-card border border-ink-line bg-ink-soft p-5">
-        <h2 className="font-display text-lg font-bold text-parchment">Account</h2>
-        <form onSubmit={handleAccountSubmit} className="mt-4 space-y-4">
-          <div>
-            <label className="label">Current password</label>
-            <input
-              type="password"
-              required
-              className="field"
-              value={currentPassword}
-              onChange={(e) => setCurrentPassword(e.target.value)}
-            />
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="label">New username (optional)</label>
-              <input
-                className="field"
-                value={newUsername}
-                onChange={(e) => setNewUsername(e.target.value)}
-              />
-            </div>
-            <div>
-              <label className="label">New password (optional)</label>
-              <input
-                type="password"
-                className="field"
-                value={newPassword}
-                onChange={(e) => setNewPassword(e.target.value)}
-              />
-            </div>
-          </div>
-          {accountMsg && <p className="text-sm text-amber">{accountMsg}</p>}
-          <button type="submit" disabled={accountSaving} className="btn-primary">
-            {accountSaving ? "Saving…" : "Update account"}
-          </button>
-        </form>
-        <button onClick={handleLogout} className="btn-secondary mt-4 w-full">
-          Log out
-        </button>
-      </section>
-
-      {/* --- Backup & restore (per-user) --- */}
-      <section className="rounded-card border border-ink-line bg-ink-soft p-5">
-        <h2 className="font-display text-lg font-bold text-parchment">Backup &amp; restore</h2>
-        <p className="mt-1 text-sm text-mute">
-          Download every game in your account plus your display preferences
-          (including your PSN token) as a JSON file, or restore from one.
-        </p>
-
-        <div className="mt-4">
-          <a href="/api/backup" download className="btn-secondary inline-block text-xs">
-            Download my backup
-          </a>
-        </div>
-
-        <div className="mt-5 space-y-2">
-          <label className="label">Restore from a file</label>
-          <input
-            type="file"
-            accept="application/json,.json"
-            onChange={(e) => setImportFile(e.target.files?.[0] ?? null)}
-            className="block w-full text-xs text-mute file:mr-3 file:rounded file:border file:border-ink-line file:bg-ink file:px-2 file:py-1 file:text-parchment"
-          />
-          <div className="flex flex-wrap gap-4 pt-1 text-xs text-parchment">
-            <label className="flex items-center gap-1.5">
-              <input
-                type="radio"
-                name="importmode"
-                checked={importMode === "merge"}
-                onChange={() => setImportMode("merge")}
-                className="accent-amber"
-              />
-              Merge — add games that aren&rsquo;t already here
-            </label>
-            <label className="flex items-center gap-1.5">
-              <input
-                type="radio"
-                name="importmode"
-                checked={importMode === "replace"}
-                onChange={() => setImportMode("replace")}
-                className="accent-amber"
-              />
-              Replace — wipe my games first
-            </label>
-          </div>
-          <button
-            type="button"
-            onClick={runImport}
-            disabled={!importFile || backupBusy}
-            className="btn-primary text-xs"
-          >
-            {backupBusy ? "Working…" : "Import"}
-          </button>
-          {backupMsg && <p className="text-xs text-amber">{backupMsg}</p>}
-        </div>
-      </section>
 
       {instance.isAdmin && (
         <>
@@ -778,6 +780,196 @@ export default function SettingsPage() {
               These apply to everyone on this GameVault.
             </p>
           </div>
+
+          {/* --- Barcode lookup --- */}
+          <section className="rounded-card border border-ink-line bg-ink-soft p-5">
+            <div className="flex items-center justify-between">
+              <h2 className="font-display text-lg font-bold text-parchment">Barcode lookup</h2>
+              <Toggle
+                checked={instance.barcodeLookupEnabled}
+                onChange={(v) => saveInstance({ barcodeLookupEnabled: v })}
+              />
+            </div>
+            <p className="mt-1 text-sm text-mute">
+              Powers the &ldquo;Scan barcode&rdquo; button on the Add a game
+              screen. Default is UPCitemdb&rsquo;s free tier.
+            </p>
+            <div className="mt-4">
+              <label className="label">
+                Barcode API URL{" "}
+                <span className="text-xs text-mute">
+                  (barcode appended, or use a {"{code}"} placeholder)
+                </span>
+              </label>
+              <input
+                className="field"
+                defaultValue={instance.barcodeApiUrl}
+                placeholder="https://api.upcitemdb.com/prod/trial/lookup?upc="
+                onBlur={(e) => saveInstance({ barcodeApiUrl: e.target.value })}
+              />
+            </div>
+          </section>
+
+          {/* --- Full instance backup --- */}
+          <section className="rounded-card border border-ink-line bg-ink-soft p-5">
+            <h2 className="font-display text-lg font-bold text-parchment">
+              Full instance backup
+            </h2>
+            <p className="mt-1 text-sm text-mute">
+              Everything: every account (with password hashes and PSN tokens),
+              all their games, and the integration settings. For disaster
+              recovery — restoring wipes the instance and logs everyone out.
+            </p>
+
+            <div className="mt-4">
+              <a
+                href="/api/admin/backup"
+                download
+                className="btn-secondary inline-block text-xs"
+              >
+                Download instance backup
+              </a>
+            </div>
+
+            <div className="mt-5 space-y-2">
+              <label className="label">Restore the whole instance</label>
+              <input
+                type="file"
+                accept="application/json,.json"
+                onChange={(e) => setInstImportFile(e.target.files?.[0] ?? null)}
+                className="block w-full text-xs text-mute file:mr-3 file:rounded file:border file:border-ink-line file:bg-ink file:px-2 file:py-1 file:text-parchment"
+              />
+              <button
+                type="button"
+                onClick={runInstanceRestore}
+                disabled={!instImportFile || backupBusy}
+                className="btn-primary text-xs text-red-400"
+              >
+                {backupBusy ? "Working…" : "Wipe & restore instance"}
+              </button>
+            </div>
+          </section>
+
+          {/* --- HowLongToBeat --- */}
+          <section className="rounded-card border border-ink-line bg-ink-soft p-5">
+            <div className="flex items-center justify-between">
+              <h2 className="font-display text-lg font-bold text-parchment">HowLongToBeat</h2>
+              <Toggle
+                checked={instance.hltbEnabled}
+                onChange={(v) => saveInstance({ hltbEnabled: v })}
+              />
+            </div>
+            <p className="mt-1 text-sm text-mute">
+              Completion time estimates. Unofficial endpoint, no credentials needed.
+            </p>
+          </section>
+
+          {/* --- IGDB --- */}
+          <section className="rounded-card border border-ink-line bg-ink-soft p-5">
+            <div className="flex items-center justify-between">
+              <h2 className="font-display text-lg font-bold text-parchment">IGDB metadata</h2>
+              <Toggle
+                checked={instance.igdbEnabled}
+                onChange={(v) => saveInstance({ igdbEnabled: v })}
+              />
+            </div>
+            <p className="mt-1 text-sm text-mute">
+              Cover art, release dates, summaries, genres, Discover, the calendar.
+              Requires free Twitch developer credentials.
+            </p>
+            <div className="mt-4 grid grid-cols-2 gap-4">
+              <div>
+                <label className="label">Twitch Client ID</label>
+                <input
+                  className="field"
+                  defaultValue={instance.twitchClientId}
+                  onBlur={(e) => saveInstance({ twitchClientId: e.target.value })}
+                />
+              </div>
+              <div>
+                <label className="label">
+                  Twitch Client Secret{" "}
+                  {instance.hasTwitchClientSecret && (
+                    <span className="text-xs text-mute">(currently set)</span>
+                  )}
+                </label>
+                <input
+                  type="password"
+                  className="field"
+                  placeholder={instance.hasTwitchClientSecret ? "••••••••" : ""}
+                  value={twitchSecretInput}
+                  onChange={(e) => setTwitchSecretInput(e.target.value)}
+                  onBlur={() =>
+                    twitchSecretInput && saveInstance({ twitchClientSecret: twitchSecretInput })
+                  }
+                />
+              </div>
+            </div>
+          </section>
+
+          {/* --- PriceCharting --- */}
+          <section className="rounded-card border border-ink-line bg-ink-soft p-5">
+            <div className="flex items-center justify-between">
+              <h2 className="font-display text-lg font-bold text-parchment">PriceCharting</h2>
+              <Toggle
+                checked={instance.priceChartingEnabled}
+                onChange={(v) => saveInstance({ priceChartingEnabled: v })}
+              />
+            </div>
+            <p className="mt-1 text-sm text-mute">
+              Current resale values, converted from USD to GBP.
+            </p>
+            <div className="mt-4">
+              <label className="label">Currency conversion API URL</label>
+              <input
+                className="field"
+                defaultValue={instance.currencyApiUrl}
+                placeholder="https://open.er-api.com/v6/latest/USD"
+                onBlur={(e) => saveInstance({ currencyApiUrl: e.target.value })}
+              />
+            </div>
+          </section>
+
+          {/* --- Steam --- */}
+          <section className="rounded-card border border-ink-line bg-ink-soft p-5">
+            <div className="flex items-center justify-between">
+              <h2 className="font-display text-lg font-bold text-parchment">Steam import</h2>
+              <Toggle
+                checked={instance.steamImportEnabled}
+                onChange={(v) => saveInstance({ steamImportEnabled: v })}
+              />
+            </div>
+            <p className="mt-1 text-sm text-mute">
+              Lets each user pull in their owned Steam games from their personal
+              settings. One Steam Web API key covers the whole instance — get a
+              free one at{" "}
+              <a
+                className="text-amber underline"
+                href="https://steamcommunity.com/dev/apikey"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                steamcommunity.com/dev/apikey
+              </a>
+              .
+            </p>
+            <div className="mt-4">
+              <label className="label">
+                Steam Web API key{" "}
+                {instance.hasSteamApiKey && (
+                  <span className="text-xs text-mute">(currently set)</span>
+                )}
+              </label>
+              <input
+                type="password"
+                className="field"
+                placeholder={instance.hasSteamApiKey ? "••••••••" : ""}
+                value={steamKeyInput}
+                onChange={(e) => setSteamKeyInput(e.target.value)}
+                onBlur={() => steamKeyInput && saveInstance({ steamApiKey: steamKeyInput })}
+              />
+            </div>
+          </section>
 
           {/* --- Users --- */}
           <section className="rounded-card border border-ink-line bg-ink-soft p-5">
@@ -837,196 +1029,6 @@ export default function SettingsPage() {
                   )}
                 </div>
               ))}
-            </div>
-          </section>
-
-          {/* --- Full instance backup --- */}
-          <section className="rounded-card border border-ink-line bg-ink-soft p-5">
-            <h2 className="font-display text-lg font-bold text-parchment">
-              Full instance backup
-            </h2>
-            <p className="mt-1 text-sm text-mute">
-              Everything: every account (with password hashes and PSN tokens),
-              all their games, and the integration settings. For disaster
-              recovery — restoring wipes the instance and logs everyone out.
-            </p>
-
-            <div className="mt-4">
-              <a
-                href="/api/admin/backup"
-                download
-                className="btn-secondary inline-block text-xs"
-              >
-                Download instance backup
-              </a>
-            </div>
-
-            <div className="mt-5 space-y-2">
-              <label className="label">Restore the whole instance</label>
-              <input
-                type="file"
-                accept="application/json,.json"
-                onChange={(e) => setInstImportFile(e.target.files?.[0] ?? null)}
-                className="block w-full text-xs text-mute file:mr-3 file:rounded file:border file:border-ink-line file:bg-ink file:px-2 file:py-1 file:text-parchment"
-              />
-              <button
-                type="button"
-                onClick={runInstanceRestore}
-                disabled={!instImportFile || backupBusy}
-                className="btn-primary text-xs text-red-400"
-              >
-                {backupBusy ? "Working…" : "Wipe & restore instance"}
-              </button>
-            </div>
-          </section>
-
-          {/* --- IGDB --- */}
-          <section className="rounded-card border border-ink-line bg-ink-soft p-5">
-            <div className="flex items-center justify-between">
-              <h2 className="font-display text-lg font-bold text-parchment">IGDB metadata</h2>
-              <Toggle
-                checked={instance.igdbEnabled}
-                onChange={(v) => saveInstance({ igdbEnabled: v })}
-              />
-            </div>
-            <p className="mt-1 text-sm text-mute">
-              Cover art, release dates, summaries, genres, Discover, the calendar.
-              Requires free Twitch developer credentials.
-            </p>
-            <div className="mt-4 grid grid-cols-2 gap-4">
-              <div>
-                <label className="label">Twitch Client ID</label>
-                <input
-                  className="field"
-                  defaultValue={instance.twitchClientId}
-                  onBlur={(e) => saveInstance({ twitchClientId: e.target.value })}
-                />
-              </div>
-              <div>
-                <label className="label">
-                  Twitch Client Secret{" "}
-                  {instance.hasTwitchClientSecret && (
-                    <span className="text-xs text-mute">(currently set)</span>
-                  )}
-                </label>
-                <input
-                  type="password"
-                  className="field"
-                  placeholder={instance.hasTwitchClientSecret ? "••••••••" : ""}
-                  value={twitchSecretInput}
-                  onChange={(e) => setTwitchSecretInput(e.target.value)}
-                  onBlur={() =>
-                    twitchSecretInput && saveInstance({ twitchClientSecret: twitchSecretInput })
-                  }
-                />
-              </div>
-            </div>
-          </section>
-
-          {/* --- HowLongToBeat --- */}
-          <section className="rounded-card border border-ink-line bg-ink-soft p-5">
-            <div className="flex items-center justify-between">
-              <h2 className="font-display text-lg font-bold text-parchment">HowLongToBeat</h2>
-              <Toggle
-                checked={instance.hltbEnabled}
-                onChange={(v) => saveInstance({ hltbEnabled: v })}
-              />
-            </div>
-            <p className="mt-1 text-sm text-mute">
-              Completion time estimates. Unofficial endpoint, no credentials needed.
-            </p>
-          </section>
-
-          {/* --- Steam --- */}
-          <section className="rounded-card border border-ink-line bg-ink-soft p-5">
-            <div className="flex items-center justify-between">
-              <h2 className="font-display text-lg font-bold text-parchment">Steam import</h2>
-              <Toggle
-                checked={instance.steamImportEnabled}
-                onChange={(v) => saveInstance({ steamImportEnabled: v })}
-              />
-            </div>
-            <p className="mt-1 text-sm text-mute">
-              Lets each user pull in their owned Steam games from their personal
-              settings. One Steam Web API key covers the whole instance — get a
-              free one at{" "}
-              <a
-                className="text-amber underline"
-                href="https://steamcommunity.com/dev/apikey"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                steamcommunity.com/dev/apikey
-              </a>
-              .
-            </p>
-            <div className="mt-4">
-              <label className="label">
-                Steam Web API key{" "}
-                {instance.hasSteamApiKey && (
-                  <span className="text-xs text-mute">(currently set)</span>
-                )}
-              </label>
-              <input
-                type="password"
-                className="field"
-                placeholder={instance.hasSteamApiKey ? "••••••••" : ""}
-                value={steamKeyInput}
-                onChange={(e) => setSteamKeyInput(e.target.value)}
-                onBlur={() => steamKeyInput && saveInstance({ steamApiKey: steamKeyInput })}
-              />
-            </div>
-          </section>
-
-          {/* --- PriceCharting --- */}
-          <section className="rounded-card border border-ink-line bg-ink-soft p-5">
-            <div className="flex items-center justify-between">
-              <h2 className="font-display text-lg font-bold text-parchment">PriceCharting</h2>
-              <Toggle
-                checked={instance.priceChartingEnabled}
-                onChange={(v) => saveInstance({ priceChartingEnabled: v })}
-              />
-            </div>
-            <p className="mt-1 text-sm text-mute">
-              Current resale values, converted from USD to GBP.
-            </p>
-            <div className="mt-4">
-              <label className="label">Currency conversion API URL</label>
-              <input
-                className="field"
-                defaultValue={instance.currencyApiUrl}
-                placeholder="https://open.er-api.com/v6/latest/USD"
-                onBlur={(e) => saveInstance({ currencyApiUrl: e.target.value })}
-              />
-            </div>
-          </section>
-
-          {/* --- Barcode lookup --- */}
-          <section className="rounded-card border border-ink-line bg-ink-soft p-5">
-            <div className="flex items-center justify-between">
-              <h2 className="font-display text-lg font-bold text-parchment">Barcode lookup</h2>
-              <Toggle
-                checked={instance.barcodeLookupEnabled}
-                onChange={(v) => saveInstance({ barcodeLookupEnabled: v })}
-              />
-            </div>
-            <p className="mt-1 text-sm text-mute">
-              Powers the &ldquo;Scan barcode&rdquo; button on the Add a game
-              screen. Default is UPCitemdb&rsquo;s free tier.
-            </p>
-            <div className="mt-4">
-              <label className="label">
-                Barcode API URL{" "}
-                <span className="text-xs text-mute">
-                  (barcode appended, or use a {"{code}"} placeholder)
-                </span>
-              </label>
-              <input
-                className="field"
-                defaultValue={instance.barcodeApiUrl}
-                placeholder="https://api.upcitemdb.com/prod/trial/lookup?upc="
-                onBlur={(e) => saveInstance({ barcodeApiUrl: e.target.value })}
-              />
             </div>
           </section>
         </>
