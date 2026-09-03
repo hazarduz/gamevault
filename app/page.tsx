@@ -4,10 +4,11 @@ import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/session";
 import { getUserPrefs } from "@/lib/prefs";
 import { parseScoreBands } from "@/lib/score-badge";
-import { parseStatusColors } from "@/lib/play-status";
+import { parseStatusColors, isPlayStatus } from "@/lib/play-status";
 import { sortGames, DEFAULT_SORT, isSortValue, type SortValue } from "@/lib/sort-games";
 import GameCard from "@/components/GameCard";
 import SortSelect from "@/components/SortSelect";
+import FilterBar from "@/components/FilterBar";
 import Link from "next/link";
 
 export const dynamic = "force-dynamic";
@@ -15,35 +16,60 @@ export const dynamic = "force-dynamic";
 export default async function DashboardPage({
   searchParams,
 }: {
-  searchParams: { q?: string; sort?: string; platform?: string };
+  searchParams: {
+    q?: string;
+    sort?: string;
+    platform?: string;
+    status?: string;
+    media?: string;
+  };
 }) {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
 
   const q = searchParams.q?.trim();
   const platform = searchParams.platform?.trim() || undefined;
+  const status = isPlayStatus(searchParams.status?.trim())
+    ? searchParams.status!.trim()
+    : undefined;
+  const media =
+    searchParams.media === "Physical" || searchParams.media === "Digital"
+      ? searchParams.media
+      : undefined;
   const sort: SortValue = isSortValue(searchParams.sort) ? searchParams.sort : DEFAULT_SORT;
+  const filtered = !!(q || platform || status || media);
 
   const prefs = await getUserPrefs(user.id);
   const scoreBands = parseScoreBands(prefs.scoreBadgeBands);
   const statusColors = parseStatusColors(prefs.statusColors);
 
-  const games = sortGames(
-    await prisma.game.findMany({
-      where: {
-        userId: user.id,
-        wishlist: false,
-        ...(platform ? { platform } : {}),
-        ...(q ? { title: { contains: q, mode: "insensitive" as const } } : {}),
-      },
+  const [games, platformRows] = await Promise.all([
+    prisma.game
+      .findMany({
+        where: {
+          userId: user.id,
+          wishlist: false,
+          ...(platform ? { platform } : {}),
+          ...(status ? { playStatus: status } : {}),
+          ...(media ? { format: media } : {}),
+          ...(q ? { title: { contains: q, mode: "insensitive" as const } } : {}),
+        },
+      })
+      .then((rows) => sortGames(rows, sort)),
+    prisma.game.findMany({
+      where: { userId: user.id, wishlist: false },
+      select: { platform: true },
+      distinct: ["platform"],
+      orderBy: { platform: "asc" },
     }),
-    sort
-  );
+  ]);
 
-  // Preserved across the search form and the sort control.
+  // Preserved across the search form.
   const keep: Record<string, string> = {};
   if (sort !== DEFAULT_SORT) keep.sort = sort;
   if (platform) keep.platform = platform;
+  if (status) keep.status = status;
+  if (media) keep.media = media;
 
   const totalValue = games.reduce((sum, g) => {
     if (g.format === "Digital") return sum;
@@ -53,7 +79,7 @@ export default async function DashboardPage({
 
   return (
     <div>
-      <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+      <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h1 className="font-display text-2xl font-bold text-parchment">
             Your collection
@@ -63,19 +89,16 @@ export default async function DashboardPage({
             estimated{" "}
             <span className="text-amber">£{totalValue.toFixed(2)}</span>
           </p>
-          {platform && (
-            <Link
-              href={sort !== DEFAULT_SORT ? `/?sort=${sort}` : "/"}
-              className="mt-2 inline-flex items-center gap-1 rounded-full border border-ink-line bg-ink-soft px-2.5 py-1 text-xs text-parchment transition hover:border-mute"
-            >
-              Platform: {platform} <span className="text-mute">✕</span>
-            </Link>
-          )}
         </div>
-        <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row sm:items-center">
-          <Suspense fallback={null}>
-            <SortSelect current={sort} />
-          </Suspense>
+        <div className="flex w-full flex-col gap-2 sm:w-auto sm:items-end">
+          <div className="flex flex-wrap items-center gap-2">
+            <Suspense fallback={null}>
+              <FilterBar platforms={platformRows.map((r) => r.platform)} />
+            </Suspense>
+            <Suspense fallback={null}>
+              <SortSelect current={sort} />
+            </Suspense>
+          </div>
           <form action="/" className="w-full sm:w-72">
             {Object.entries(keep).map(([k, v]) => (
               <input key={k} type="hidden" name={k} value={v} />
@@ -94,14 +117,14 @@ export default async function DashboardPage({
       {games.length === 0 ? (
         <div className="rounded-card border border-dashed border-ink-line py-24 text-center">
           <p className="font-display text-lg text-parchment">
-            {q || platform ? "Nothing matches that filter." : "Your shelf is empty."}
+            {filtered ? "Nothing matches those filters." : "Your shelf is empty."}
           </p>
           <p className="mt-2 text-sm text-mute">
-            {q || platform
-              ? "Try a different search or platform."
+            {filtered
+              ? "Loosen a filter or clear the search."
               : "Start by adding your first game."}
           </p>
-          {!q && !platform && (
+          {!filtered && (
             <Link href="/games/add" className="btn-primary mt-6 inline-block">
               Add a game
             </Link>

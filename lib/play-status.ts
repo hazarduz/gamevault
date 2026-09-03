@@ -7,12 +7,14 @@
 export type PlayStatus =
   | "unplayed"
   | "in_progress"
+  | "played_previously"
   | "completed"
   | "platinum";
 
 export const PLAY_STATUS_OPTIONS: { value: PlayStatus; label: string }[] = [
   { value: "unplayed", label: "Unplayed" },
   { value: "in_progress", label: "In Progress" },
+  { value: "played_previously", label: "Played previously" },
   { value: "completed", label: "Completed" },
   { value: "platinum", label: "Platinum Achieved" },
 ];
@@ -20,6 +22,7 @@ export const PLAY_STATUS_OPTIONS: { value: PlayStatus; label: string }[] = [
 export const DEFAULT_STATUS_COLORS: Record<PlayStatus, string> = {
   unplayed: "#6b7280",
   in_progress: "#e3a63e",
+  played_previously: "#e3a63e",
   completed: "#22c55e",
   platinum: "#c9ccd4",
 };
@@ -30,6 +33,7 @@ export function isPlayStatus(v: unknown): v is PlayStatus {
   return (
     v === "unplayed" ||
     v === "in_progress" ||
+    v === "played_previously" ||
     v === "completed" ||
     v === "platinum"
   );
