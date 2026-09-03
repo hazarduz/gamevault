@@ -95,17 +95,33 @@ async function resolveAccountId(
   return String(accountId);
 }
 
-export async function getEarnedPlatinumTitles(): Promise<PsnPlatinumTitle[]> {
+// Caps the whole PSN round-trip so a hung request from psn-api / Sony
+// fails fast with a readable error instead of the reverse proxy timing
+// out and Cloudflare showing a bare "Bad gateway".
+function withTimeout<T>(work: Promise<T>, ms: number, label: string): Promise<T> {
+  return Promise.race([
+    work,
+    new Promise<T>((_, reject) =>
+      setTimeout(() => reject(new Error(`${label} timed out after ${ms / 1000}s.`)), ms)
+    ),
+  ]);
+}
+
+export function getEarnedPlatinumTitles(): Promise<PsnPlatinumTitle[]> {
+  return withTimeout(scanPlatinums(), 45_000, "PlayStation trophy scan");
+}
+
+async function scanPlatinums(): Promise<PsnPlatinumTitle[]> {
   const { accessToken, onlineId } = await authorize();
   const accountId = await resolveAccountId(accessToken, onlineId);
   const { getUserTitles } = await loadPsnApi();
 
   const platinums: PsnPlatinumTitle[] = [];
-  const limit = 800;
+  const limit = 200;
   let offset = 0;
 
-  // Guarded loop — Sony caps the list well under 50 * 800.
-  for (let guard = 0; guard < 50; guard++) {
+  // Guarded loop — Sony caps the list well under 25 * 200.
+  for (let guard = 0; guard < 25; guard++) {
     const page: any = await getUserTitles({ accessToken }, accountId, {
       limit,
       offset,
@@ -125,7 +141,7 @@ export async function getEarnedPlatinumTitles(): Promise<PsnPlatinumTitle[]> {
 
     const total = Number(page?.totalItemCount ?? 0);
     offset += limit;
-    if (titles.length === 0 || offset >= total) break;
+    if (titles.length < limit || offset >= total) break;
   }
 
   return platinums.filter((p) => p.name);
