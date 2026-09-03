@@ -285,10 +285,12 @@ export async function getSimilarGamesForCollection(
   }
   if (tally.size === 0) return [];
 
-  // For the indie view, cast a wider net before filtering.
+  // A generous pool so the Discover pages can rotate through fresh
+  // batches without re-hitting IGDB. Indie casts wider still since the
+  // genre + publisher filter thins it out.
   const topIds = [...tally.entries()]
     .sort((a, b) => b[1] - a[1])
-    .slice(0, opts.indieOnly ? 120 : 40)
+    .slice(0, opts.indieOnly ? 200 : 120)
     .map(([id]) => id);
 
   const extraFields = opts.indieOnly
@@ -300,7 +302,7 @@ export async function getSimilarGamesForCollection(
       "games",
       `where id = (${topIds.join(",")});
        fields name, cover.image_id, first_release_date, rating, summary, platforms.name${extraFields};
-       limit 120;`
+       limit 250;`
     ),
     25_000,
     "IGDB discover detail"
@@ -333,5 +335,5 @@ export async function getSimilarGamesForCollection(
       count: tally.get(g.id) ?? 0,
     }))
     .sort((a, b) => b.count - a.count || (b.rating ?? 0) - (a.rating ?? 0))
-    .slice(0, 40);
+    .slice(0, opts.indieOnly ? 120 : 150);
 }

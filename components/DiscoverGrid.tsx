@@ -1,8 +1,19 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import Image from "next/image";
 import { PLATFORM_OPTIONS, pickPreferredPlatform } from "@/lib/platforms";
+
+const PAGE_SIZE = 24;
+
+function shuffled(n: number): number[] {
+  const a = Array.from({ length: n }, (_, i) => i);
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
 
 interface Suggestion {
   igdbId: number;
@@ -34,6 +45,30 @@ export default function DiscoverGrid({ suggestions }: { suggestions: Suggestion[
   const [busyId, setBusyId] = useState<number | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
 
+  // Rotate through the full pool a page at a time, reshuffling on wrap.
+  const [order, setOrder] = useState<number[]>(() => shuffled(suggestions.length));
+  const [start, setStart] = useState(0);
+  const canRotate = suggestions.length > PAGE_SIZE;
+
+  function rotate() {
+    const next = start + PAGE_SIZE;
+    if (next >= order.length) {
+      setOrder(shuffled(suggestions.length));
+      setStart(0);
+    } else {
+      setStart(next);
+    }
+  }
+
+  const visible = useMemo(
+    () =>
+      order
+        .slice(start, start + PAGE_SIZE)
+        .map((i) => suggestions[i])
+        .filter((s): s is Suggestion => !!s && !added.has(s.igdbId)),
+    [order, start, suggestions, added]
+  );
+
   async function addGame(s: Suggestion, asWishlist: boolean) {
     const platform = choice[s.igdbId] ?? defaultPlatform(s.platforms);
     setBusyId(s.igdbId);
@@ -61,9 +96,19 @@ export default function DiscoverGrid({ suggestions }: { suggestions: Suggestion[
 
   return (
     <div className="mt-6">
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+        <p className="text-xs text-mute">
+          Showing {visible.length} of {suggestions.length}
+        </p>
+        {canRotate && (
+          <button type="button" onClick={rotate} className="btn-secondary text-xs">
+            ↻ Rotate
+          </button>
+        )}
+      </div>
       {msg && <p className="mb-4 text-sm text-amber">{msg}</p>}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {suggestions.map((s) => {
+        {visible.map((s) => {
           const done = added.has(s.igdbId);
           return (
             <div
