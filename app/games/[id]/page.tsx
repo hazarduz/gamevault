@@ -269,17 +269,21 @@ export default function GameDetailPage({ params }: { params: { id: string } }) {
           </div>
           <div>
             <label className="label">Condition</label>
-            <select
-              className="field"
-              value={game.condition ?? ""}
-              onChange={(e) => patch({ condition: e.target.value })}
-            >
-              <option>Complete in box</option>
-              <option>Loose cart/disc</option>
-              <option>Sealed</option>
-              <option>Box only</option>
-              <option>Manual only</option>
-            </select>
+            {game.format === "Digital" ? (
+              <span className="field block text-mute">N/A — digital</span>
+            ) : (
+              <select
+                className="field"
+                value={game.condition ?? ""}
+                onChange={(e) => patch({ condition: e.target.value })}
+              >
+                <option>Complete in box</option>
+                <option>Loose cart/disc</option>
+                <option>Sealed</option>
+                <option>Box only</option>
+                <option>Manual only</option>
+              </select>
+            )}
           </div>
           <div>
             <label className="label">Play status</label>
@@ -300,7 +304,16 @@ export default function GameDetailPage({ params }: { params: { id: string } }) {
             <select
               className="field"
               value={game.format}
-              onChange={(e) => patch({ format: e.target.value })}
+              onChange={(e) =>
+                patch(
+                  e.target.value === "Digital"
+                    ? { format: "Digital", condition: null }
+                    : {
+                        format: "Physical",
+                        condition: game.condition ?? "Complete in box",
+                      }
+                )
+              }
             >
               <option>Physical</option>
               <option>Digital</option>

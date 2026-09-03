@@ -41,7 +41,7 @@ export async function POST(req: NextRequest) {
       title: body.title,
       platform: body.platform,
       region: body.region ?? null,
-      condition: body.condition ?? null,
+      condition: body.condition || null,
       format: body.format ?? "Physical",
       playStatus: body.playStatus ?? "unplayed",
       notes: body.notes ?? null,

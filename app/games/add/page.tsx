@@ -233,24 +233,34 @@ export default function AddGamePage() {
         <div className="grid grid-cols-2 gap-4">
           <div>
             <label className="label">Condition</label>
-            <select
-              className="field"
-              value={form.condition}
-              onChange={(e) => setForm({ ...form, condition: e.target.value })}
-            >
-              <option>Complete in box</option>
-              <option>Loose cart/disc</option>
-              <option>Sealed</option>
-              <option>Box only</option>
-              <option>Manual only</option>
-            </select>
+            {form.format === "Digital" ? (
+              <span className="field block text-mute">N/A — digital</span>
+            ) : (
+              <select
+                className="field"
+                value={form.condition}
+                onChange={(e) => setForm({ ...form, condition: e.target.value })}
+              >
+                <option>Complete in box</option>
+                <option>Loose cart/disc</option>
+                <option>Sealed</option>
+                <option>Box only</option>
+                <option>Manual only</option>
+              </select>
+            )}
           </div>
           <div>
             <label className="label">Format</label>
             <select
               className="field"
               value={form.format}
-              onChange={(e) => setForm({ ...form, format: e.target.value })}
+              onChange={(e) =>
+                setForm({
+                  ...form,
+                  format: e.target.value,
+                  condition: e.target.value === "Digital" ? "" : form.condition || "Complete in box",
+                })
+              }
             >
               <option>Physical</option>
               <option>Digital</option>
