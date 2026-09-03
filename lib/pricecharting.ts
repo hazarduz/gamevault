@@ -155,26 +155,43 @@ export async function findPriceChartingMatch(
   return parsePricesFromProductPage(foundUrl);
 }
 
-export async function usdToGbp(amountUsd: number | null): Promise<number | null> {
-  if (amountUsd === null) return null;
+// Any endpoint used here must return JSON shaped like
+//   { "rates": { "GBP": 0.74, ... } }
+// (a USD base). Both defaults below are free and need no API key.
+// api.exchangerate.host — the previous default — started requiring a
+// paid access_key and now returns { success: false } for every
+// key-less request, which silently zeroed out every converted price.
+const CURRENCY_ENDPOINTS = [
+  "https://open.er-api.com/v6/latest/USD",
+  "https://api.frankfurter.dev/v1/latest?base=USD&symbols=GBP",
+];
 
+async function fetchUsdToGbpRate(): Promise<number | null> {
   const { getSettings } = await import("@/lib/settings");
   const settings = await getSettings();
 
-  const endpoint =
-    settings.currencyApiUrl ||
-    process.env.EXCHANGE_RATE_API ||
-    "https://api.exchangerate.host/latest?base=USD&symbols=GBP";
+  const configured = settings.currencyApiUrl || process.env.EXCHANGE_RATE_API;
+  const endpoints = configured ? [configured, ...CURRENCY_ENDPOINTS] : CURRENCY_ENDPOINTS;
 
-  try {
-    const res = await fetch(endpoint);
-    const data = await res.json();
-    const rate = data?.rates?.GBP;
-    if (!rate) return null;
-    return Math.round(amountUsd * rate * 100) / 100;
-  } catch {
-    // If the currency API is unreachable, don't fail the whole request —
-    // just skip conversion and let the user set the GBP value manually.
-    return null;
+  for (const endpoint of endpoints) {
+    try {
+      const res = await fetch(endpoint);
+      if (!res.ok) continue;
+      const data = await res.json();
+      const rate = Number(data?.rates?.GBP);
+      if (Number.isFinite(rate) && rate > 0) return rate;
+    } catch {
+      // Try the next endpoint.
+    }
   }
+  return null;
+}
+
+export async function usdToGbp(amountUsd: number | null): Promise<number | null> {
+  if (amountUsd === null) return null;
+
+  const rate = await fetchUsdToGbpRate();
+  if (rate === null) return null;
+
+  return Math.round(amountUsd * rate * 100) / 100;
 }
