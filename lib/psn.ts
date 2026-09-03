@@ -6,13 +6,37 @@
 //
 // This module only READS. Writing "platinum" to games happens in
 // app/api/psn/apply after the user confirms the title -> game mapping.
-import {
-  exchangeNpssoForAccessCode,
-  exchangeAccessCodeForAuthTokens,
-  makeUniversalSearch,
-  getUserTitles,
-} from "psn-api";
+//
+// psn-api is loaded with a dynamic import inside the functions rather
+// than a top-level import: that keeps it out of the Next build graph, so
+// a bundling problem or a wrong export name shows up as a catchable
+// runtime error (a 502 with a real message) instead of failing the
+// whole production build.
 import { getSettings } from "@/lib/settings";
+
+async function loadPsnApi() {
+  const mod: any = await import("psn-api");
+  for (const fn of [
+    "exchangeNpssoForAccessCode",
+    "exchangeAccessCodeForAuthTokens",
+    "makeUniversalSearch",
+    "getUserTitles",
+  ]) {
+    if (typeof mod[fn] !== "function") {
+      throw new Error(`psn-api is missing ${fn}() — the package version may have changed.`);
+    }
+  }
+  return mod as {
+    exchangeNpssoForAccessCode: (npsso: string) => Promise<string>;
+    exchangeAccessCodeForAuthTokens: (code: string) => Promise<{ accessToken: string }>;
+    makeUniversalSearch: (auth: { accessToken: string }, term: string, domain: string) => Promise<any>;
+    getUserTitles: (
+      auth: { accessToken: string },
+      accountId: string,
+      options?: { limit?: number; offset?: number }
+    ) => Promise<any>;
+  };
+}
 
 export interface PsnPlatinumTitle {
   name: string;
@@ -34,6 +58,8 @@ async function authorize(): Promise<{ accessToken: string; onlineId: string }> {
     throw new Error("No PlayStation token set — add your NPSSO token in Settings.");
   }
 
+  const { exchangeNpssoForAccessCode, exchangeAccessCodeForAuthTokens } = await loadPsnApi();
+
   let accessCode: string;
   try {
     accessCode = await exchangeNpssoForAccessCode(settings.psnNpsso);
@@ -53,6 +79,7 @@ async function resolveAccountId(
 ): Promise<string> {
   if (!onlineId.trim()) return "me";
 
+  const { makeUniversalSearch } = await loadPsnApi();
   const search: any = await makeUniversalSearch(
     { accessToken },
     onlineId.trim(),
@@ -71,6 +98,7 @@ async function resolveAccountId(
 export async function getEarnedPlatinumTitles(): Promise<PsnPlatinumTitle[]> {
   const { accessToken, onlineId } = await authorize();
   const accountId = await resolveAccountId(accessToken, onlineId);
+  const { getUserTitles } = await loadPsnApi();
 
   const platinums: PsnPlatinumTitle[] = [];
   const limit = 800;
