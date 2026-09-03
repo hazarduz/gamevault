@@ -1,28 +1,11 @@
 "use client";
 
 import { useRouter, useSearchParams } from "next/navigation";
+import { SORT_OPTIONS, DEFAULT_SORT, type SortValue } from "@/lib/sort-games";
 
-export const SORT_OPTIONS = [
-  { value: "name", label: "Name (A–Z)" },
-  { value: "name-desc", label: "Name (Z–A)" },
-  { value: "score-desc", label: "IGDB score (high → low)" },
-  { value: "value-desc", label: "Current value (high → low)" },
-  { value: "added-desc", label: "Recently added" },
-  { value: "released-desc", label: "Release date (newest)" },
-  { value: "rating-desc", label: "My rating (high → low)" },
-] as const;
-
-export type SortValue = (typeof SORT_OPTIONS)[number]["value"];
-
-export const DEFAULT_SORT: SortValue = "name";
-
-export function isSortValue(v: string | undefined): v is SortValue {
-  return !!v && SORT_OPTIONS.some((o) => o.value === v);
-}
-
-// The home page is a server component, so the reordering happens by
-// pushing `?sort=` into the URL and letting it re-render. The current
-// search term (`q`) is preserved.
+// The home page is a server component, so reordering happens by pushing
+// `?sort=` into the URL and letting it re-render. The current search
+// term (`q`) is preserved.
 export default function SortSelect({ current }: { current: SortValue }) {
   const router = useRouter();
   const searchParams = useSearchParams();

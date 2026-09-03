@@ -1,56 +1,13 @@
 import { Suspense } from "react";
-import type { Game } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getSettings } from "@/lib/settings";
 import { parseScoreBands } from "@/lib/score-badge";
+import { sortGames, DEFAULT_SORT, isSortValue, type SortValue } from "@/lib/sort-games";
 import GameCard from "@/components/GameCard";
-import SortSelect, { DEFAULT_SORT, isSortValue, type SortValue } from "@/components/SortSelect";
+import SortSelect from "@/components/SortSelect";
 import Link from "next/link";
 
 export const dynamic = "force-dynamic";
-
-type GameRow = Game;
-
-function currentValue(g: GameRow): number | null {
-  const v = g.valueCibGbp ?? g.valueLooseGbp ?? g.valueNewGbp;
-  return v == null ? null : Number(v);
-}
-
-function sortGames(games: GameRow[], sort: SortValue): GameRow[] {
-  const byName = (a: GameRow, b: GameRow) =>
-    a.title.localeCompare(b.title, undefined, { sensitivity: "base" });
-
-  // Highest first, with missing values pushed to the end and ties broken
-  // by title.
-  const desc =
-    (get: (g: GameRow) => number | null) => (a: GameRow, b: GameRow) => {
-      const av = get(a);
-      const bv = get(b);
-      if (av == null && bv == null) return byName(a, b);
-      if (av == null) return 1;
-      if (bv == null) return -1;
-      return bv - av || byName(a, b);
-    };
-
-  const sorted = [...games];
-  switch (sort) {
-    case "name-desc":
-      return sorted.sort((a, b) => byName(b, a));
-    case "score-desc":
-      return sorted.sort(desc((g) => g.aggregatedRating));
-    case "value-desc":
-      return sorted.sort(desc(currentValue));
-    case "added-desc":
-      return sorted.sort(desc((g) => g.dateAdded?.getTime() ?? null));
-    case "released-desc":
-      return sorted.sort(desc((g) => g.releaseDate?.getTime() ?? null));
-    case "rating-desc":
-      return sorted.sort(desc((g) => g.personalRating));
-    case "name":
-    default:
-      return sorted.sort(byName);
-  }
-}
 
 export default async function DashboardPage({
   searchParams,
