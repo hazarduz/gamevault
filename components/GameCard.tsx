@@ -82,7 +82,7 @@ export default function GameCard({
           </div>
         )}
 
-        {dimmed && <div className="absolute inset-0 bg-black/60" />}
+        {dimmed && <div className="absolute inset-0 bg-black/75" />}
 
         <div className="absolute left-2 top-2">
           <PlatformIcon platform={platform} />
