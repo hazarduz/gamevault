@@ -144,3 +144,111 @@ export async function getIgdbGameDetail(igdbId: number): Promise<IgdbGameDetail>
     aggregatedRating: g.aggregated_rating ?? null,
   };
 }
+
+function coverUrl(imageId: string | undefined): string | null {
+  return imageId
+    ? `https://images.igdb.com/igdb/image/upload/t_cover_big/${imageId}.jpg`
+    : null;
+}
+
+export interface UpcomingRelease {
+  igdbId: number;
+  title: string;
+  coverUrl: string | null;
+  releaseDate: string; // ISO
+  platforms: string[];
+  hypes: number;
+}
+
+// Games with a first release date in the near future. Used by the
+// Release Calendar. category = 0 keeps it to base games; version_parent
+// excludes edition re-releases.
+export async function getUpcomingReleases(
+  monthsAhead = 9
+): Promise<UpcomingRelease[]> {
+  const now = Math.floor(Date.now() / 1000);
+  const until = now + monthsAhead * 30 * 24 * 60 * 60;
+
+  const results: any[] = await igdbQuery(
+    "games",
+    `where first_release_date > ${now}
+       & first_release_date < ${until}
+       & category = 0
+       & cover != null;
+     fields name, first_release_date, cover.image_id, platforms.name, hypes;
+     sort first_release_date asc;
+     limit 500;`
+  );
+
+  return results.map((g) => ({
+    igdbId: g.id,
+    title: g.name,
+    coverUrl: coverUrl(g.cover?.image_id),
+    releaseDate: new Date(g.first_release_date * 1000).toISOString(),
+    platforms: (g.platforms ?? []).map((p: any) => p.name),
+    hypes: typeof g.hypes === "number" ? g.hypes : 0,
+  }));
+}
+
+export interface SimilarSuggestion {
+  igdbId: number;
+  title: string;
+  coverUrl: string | null;
+  releaseYear: number | null;
+  rating: number | null;
+  summary: string | null;
+  platforms: string[];
+  count: number; // how many owned games list this as "similar"
+}
+
+// Aggregate IGDB's similar_games across every owned game, drop anything
+// already owned/wishlisted, rank by recurrence. Powers Discover.
+export async function getSimilarGamesForCollection(
+  ownedIgdbIds: number[],
+  excludeIgdbIds: Set<number>
+): Promise<SimilarSuggestion[]> {
+  if (ownedIgdbIds.length === 0) return [];
+
+  const owned: any[] = await igdbQuery(
+    "games",
+    `where id = (${ownedIgdbIds.join(",")});
+     fields similar_games;
+     limit 500;`
+  );
+
+  const tally = new Map<number, number>();
+  for (const g of owned) {
+    for (const sid of (g.similar_games ?? []) as number[]) {
+      if (excludeIgdbIds.has(sid)) continue;
+      tally.set(sid, (tally.get(sid) ?? 0) + 1);
+    }
+  }
+  if (tally.size === 0) return [];
+
+  const topIds = [...tally.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 40)
+    .map(([id]) => id);
+
+  const details: any[] = await igdbQuery(
+    "games",
+    `where id = (${topIds.join(",")});
+     fields name, cover.image_id, first_release_date, rating, summary, platforms.name;
+     limit 40;`
+  );
+
+  return details
+    .map((g) => ({
+      igdbId: g.id,
+      title: g.name,
+      coverUrl: coverUrl(g.cover?.image_id),
+      releaseYear: g.first_release_date
+        ? new Date(g.first_release_date * 1000).getUTCFullYear()
+        : null,
+      rating: typeof g.rating === "number" ? Math.round(g.rating) : null,
+      summary: g.summary ?? null,
+      platforms: (g.platforms ?? []).map((p: any) => p.name),
+      count: tally.get(g.id) ?? 0,
+    }))
+    .sort((a, b) => b.count - a.count || (b.rating ?? 0) - (a.rating ?? 0));
+}

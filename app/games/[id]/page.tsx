@@ -14,6 +14,7 @@ interface Game {
   condition: string | null;
   format: string;
   playStatus: string;
+  wishlist: boolean;
   notes: string | null;
   coverUrl: string | null;
   releaseDate: string | null;
@@ -149,13 +150,31 @@ export default function GameDetailPage({ params }: { params: { id: string } }) {
             <Image src={game.coverUrl} alt={game.title} fill className="object-cover" />
           )}
         </div>
-        <button onClick={handleDelete} className="btn-secondary mt-4 w-full text-red-400">
-          Remove from collection
+        {game.wishlist && (
+          <button
+            onClick={() => patch({ wishlist: false })}
+            className="btn-primary mt-4 w-full"
+          >
+            Move to collection
+          </button>
+        )}
+        <button
+          onClick={handleDelete}
+          className="btn-secondary mt-4 w-full text-red-400"
+        >
+          {game.wishlist ? "Remove from wishlist" : "Remove from collection"}
         </button>
       </div>
 
       <div>
-        <h1 className="font-display text-2xl font-bold text-parchment">{game.title}</h1>
+        <div className="flex items-center gap-2">
+          <h1 className="font-display text-2xl font-bold text-parchment">{game.title}</h1>
+          {game.wishlist && (
+            <span className="rounded-full bg-amber/90 px-2 py-0.5 font-display text-[10px] font-bold uppercase tracking-wide text-ink">
+              Wishlist
+            </span>
+          )}
+        </div>
         <p className="mt-1 text-sm text-mute">
           {game.platform}
           {game.region && ` · ${game.region}`}

@@ -13,9 +13,10 @@ export const dynamic = "force-dynamic";
 export default async function DashboardPage({
   searchParams,
 }: {
-  searchParams: { q?: string; sort?: string };
+  searchParams: { q?: string; sort?: string; platform?: string };
 }) {
   const q = searchParams.q?.trim();
+  const platform = searchParams.platform?.trim() || undefined;
   const sort: SortValue = isSortValue(searchParams.sort) ? searchParams.sort : DEFAULT_SORT;
 
   const settings = await getSettings();
@@ -24,10 +25,19 @@ export default async function DashboardPage({
 
   const games = sortGames(
     await prisma.game.findMany({
-      where: q ? { title: { contains: q, mode: "insensitive" } } : undefined,
+      where: {
+        wishlist: false,
+        ...(platform ? { platform } : {}),
+        ...(q ? { title: { contains: q, mode: "insensitive" as const } } : {}),
+      },
     }),
     sort
   );
+
+  // Preserved across the search form and the sort control.
+  const keep: Record<string, string> = {};
+  if (sort !== DEFAULT_SORT) keep.sort = sort;
+  if (platform) keep.platform = platform;
 
   const totalValue = games.reduce((sum, g) => {
     const v = g.valueCibGbp ?? g.valueLooseGbp;
@@ -46,13 +56,23 @@ export default async function DashboardPage({
             estimated{" "}
             <span className="text-amber">£{totalValue.toFixed(2)}</span>
           </p>
+          {platform && (
+            <Link
+              href={sort !== DEFAULT_SORT ? `/?sort=${sort}` : "/"}
+              className="mt-2 inline-flex items-center gap-1 rounded-full border border-ink-line bg-ink-soft px-2.5 py-1 text-xs text-parchment transition hover:border-mute"
+            >
+              Platform: {platform} <span className="text-mute">✕</span>
+            </Link>
+          )}
         </div>
         <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row sm:items-center">
           <Suspense fallback={null}>
             <SortSelect current={sort} />
           </Suspense>
           <form action="/" className="w-full sm:w-72">
-            {sort !== DEFAULT_SORT && <input type="hidden" name="sort" value={sort} />}
+            {Object.entries(keep).map(([k, v]) => (
+              <input key={k} type="hidden" name={k} value={v} />
+            ))}
             <input
               type="text"
               name="q"
@@ -67,12 +87,14 @@ export default async function DashboardPage({
       {games.length === 0 ? (
         <div className="rounded-card border border-dashed border-ink-line py-24 text-center">
           <p className="font-display text-lg text-parchment">
-            {q ? "No games match that search." : "Your shelf is empty."}
+            {q || platform ? "Nothing matches that filter." : "Your shelf is empty."}
           </p>
           <p className="mt-2 text-sm text-mute">
-            {q ? "Try a different title." : "Start by adding your first game."}
+            {q || platform
+              ? "Try a different search or platform."
+              : "Start by adding your first game."}
           </p>
-          {!q && (
+          {!q && !platform && (
             <Link href="/games/add" className="btn-primary mt-6 inline-block">
               Add a game
             </Link>

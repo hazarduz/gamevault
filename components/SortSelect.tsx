@@ -8,6 +8,7 @@ import { SORT_OPTIONS, DEFAULT_SORT, type SortValue } from "@/lib/sort-games";
 // term (`q`) is preserved.
 export default function SortSelect({ current }: { current: SortValue }) {
   const router = useRouter();
+  // Copies every current param (q, platform, …) so only `sort` changes.
   const searchParams = useSearchParams();
 
   function onChange(e: React.ChangeEvent<HTMLSelectElement>) {

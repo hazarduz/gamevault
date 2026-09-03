@@ -7,9 +7,10 @@ export async function GET(req: NextRequest) {
   const q = req.nextUrl.searchParams.get("q");
 
   const games = await prisma.game.findMany({
-    where: q
-      ? { title: { contains: q, mode: "insensitive" } }
-      : undefined,
+    where: {
+      wishlist: false,
+      ...(q ? { title: { contains: q, mode: "insensitive" as const } } : {}),
+    },
     orderBy: { title: "asc" },
   });
 

@@ -9,15 +9,19 @@ interface GameCardProps {
   title: string;
   platform: string;
   coverUrl: string | null;
-  valueCibGbp: number | null;
-  valueLooseGbp: number | null;
-  score: number | null;
-  scoreBadgeEnabled: boolean;
-  scoreBands: ScoreBand[];
-  playStatus: string;
-  statusBadgeEnabled: boolean;
-  statusColors: Record<PlayStatus, string>;
-  dimCompleted: boolean;
+  // Collection view (ignored when `wishlist` is set)
+  valueCibGbp?: number | null;
+  valueLooseGbp?: number | null;
+  score?: number | null;
+  scoreBadgeEnabled?: boolean;
+  scoreBands?: ScoreBand[];
+  playStatus?: string;
+  statusBadgeEnabled?: boolean;
+  statusColors?: Record<PlayStatus, string>;
+  dimCompleted?: boolean;
+  // Wishlist view
+  wishlist?: boolean;
+  releaseDate?: string | null;
 }
 
 export default function GameCard({
@@ -25,20 +29,34 @@ export default function GameCard({
   title,
   platform,
   coverUrl,
-  valueCibGbp,
-  valueLooseGbp,
-  score,
-  scoreBadgeEnabled,
-  scoreBands,
-  playStatus,
-  statusBadgeEnabled,
+  valueCibGbp = null,
+  valueLooseGbp = null,
+  score = null,
+  scoreBadgeEnabled = false,
+  scoreBands = [],
+  playStatus = "unplayed",
+  statusBadgeEnabled = false,
   statusColors,
-  dimCompleted,
+  dimCompleted = false,
+  wishlist = false,
+  releaseDate = null,
 }: GameCardProps) {
   const value = valueCibGbp ?? valueLooseGbp;
-  const band = scoreBadgeEnabled ? pickScoreBand(score, scoreBands) : null;
+  const band = !wishlist && scoreBadgeEnabled ? pickScoreBand(score, scoreBands) : null;
   const dimmed =
-    dimCompleted && (playStatus === "completed" || playStatus === "platinum");
+    !wishlist &&
+    dimCompleted &&
+    (playStatus === "completed" || playStatus === "platinum");
+
+  const releaseLabel = (() => {
+    if (!wishlist) return null;
+    if (!releaseDate) return "Release TBA";
+    const d = new Date(releaseDate);
+    if (Number.isNaN(d.getTime())) return "Release TBA";
+    return d.getTime() <= Date.now()
+      ? "Out now"
+      : d.toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" });
+  })();
 
   return (
     <Link
@@ -62,6 +80,12 @@ export default function GameCard({
 
         {dimmed && <div className="absolute inset-0 bg-black/60" />}
 
+        {wishlist && (
+          <span className="absolute right-2 top-2 rounded-full bg-amber/90 px-2 py-0.5 font-display text-[10px] font-bold uppercase tracking-wide text-ink">
+            Wishlist
+          </span>
+        )}
+
         {band && score !== null && (
           <span
             className="absolute right-2 top-2 flex h-9 w-9 items-center justify-center rounded-full font-display text-xs font-bold shadow-md ring-1 ring-black/20"
@@ -72,7 +96,7 @@ export default function GameCard({
           </span>
         )}
 
-        {statusBadgeEnabled && (
+        {!wishlist && statusBadgeEnabled && statusColors && (
           <div className="absolute bottom-2 left-2">
             <StatusMark status={playStatus} colors={statusColors} idSuffix={id} />
           </div>
@@ -83,10 +107,14 @@ export default function GameCard({
           {title}
         </h3>
         <p className="text-xs text-mute">{platform}</p>
-        {value !== null && (
-          <p className="mt-auto pt-2 font-display text-sm font-bold text-amber">
-            £{value.toFixed(2)}
-          </p>
+        {wishlist ? (
+          <p className="mt-auto pt-2 text-xs text-mute">{releaseLabel}</p>
+        ) : (
+          value !== null && (
+            <p className="mt-auto pt-2 font-display text-sm font-bold text-amber">
+              £{value.toFixed(2)}
+            </p>
+          )
         )}
       </div>
     </Link>
