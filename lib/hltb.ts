@@ -14,7 +14,15 @@
 import { HowLongToBeatService } from "howlongtobeat";
 import { getSettings } from "@/lib/settings";
 
-const hltbService = new HowLongToBeatService();
+// Constructed lazily inside searchHltb rather than at module scope: if
+// the "howlongtobeat" package throws while initialising, we want that to
+// surface as a normal caught error from the API route, not a crash at
+// import time that makes the route return an HTML 500 page.
+let hltbService: HowLongToBeatService | null = null;
+function getHltbService(): HowLongToBeatService {
+  if (!hltbService) hltbService = new HowLongToBeatService();
+  return hltbService;
+}
 
 export interface HltbResult {
   title: string;
@@ -31,7 +39,7 @@ export async function searchHltb(query: string): Promise<HltbResult[]> {
 
   let results;
   try {
-    results = await hltbService.search(query);
+    results = await getHltbService().search(query);
   } catch (e: any) {
     throw new Error(
       `HowLongToBeat lookup failed (${e.message}). Their site occasionally changes and breaks lookups — enter times manually if this keeps happening.`

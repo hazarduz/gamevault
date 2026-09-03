@@ -11,13 +11,27 @@ import { pricechartingConsoleSlug, slugifyTitle } from "@/lib/platforms";
 //    cleanly, etc.), fall back to their search page and take the first
 //    result link.
 //
-// Price extraction reads the visible text near the "Loose Price" /
-// "Complete Price" / "New Price" labels rather than relying on specific
-// CSS classes or ids, since label wording is more stable over time than
-// markup structure — but this can still break if PriceCharting changes
-// their page. If a lookup stops working, that's the first thing to
-// check: open a product page in a browser and see whether those three
-// labels still appear as plain text near the current prices.
+// Price extraction parses the actual `#price_data` table rather than the
+// flattened page text. The flat-text approach broke because the table
+// renders every column header first (Loose / Complete / New / Graded /
+// Box Only / Manual Only) and only then the row of values, so a regex
+// looking for "<label> ... $<amount>" would span the wrong distance and
+// grab another column's price — or nothing.
+//
+// The table structure this relies on (stable for years):
+//
+//   <table id="price_data">
+//     <tbody><tr>
+//       <td id="used_price">    <span class="price js-price">$22.24</span>
+//                               <span class="change">-<span class="js-price">$2.91</span></span> </td>
+//       <td id="complete_price"><span class="price js-price">$25.15</span> ... </td>
+//       <td id="new_price">     <span class="price js-price">$43.26</span> ... </td>
+//       ...
+//
+// "used_price" is PriceCharting's term for what collectors call loose,
+// "complete_price" is CIB. A price point with no data shows "-". If a
+// lookup stops working, open a product page and check whether those cell
+// ids and the `span.price` inside them still exist.
 
 export interface PriceChartingResult {
   productUrl: string;
@@ -27,16 +41,33 @@ export interface PriceChartingResult {
   new: number | null;
 }
 
-function extractPriceNear(flatText: string, label: string): number | null {
-  // Matches the label followed (allowing a little intervening text/markup
-  // collapse) by the first dollar amount — that's always the current
-  // price; PriceCharting shows a "±$x.xx" change amount right after it,
-  // which this intentionally ignores by only taking the first match.
-  const re = new RegExp(`${label}[^$]{0,40}\\$([\\d,]+\\.\\d{2})`, "i");
-  const match = flatText.match(re);
+// Pulls a USD amount out of "$22.24", "$1,120.00", " $43.26 ", etc.
+// Returns null for "-", empty strings, unparseable text, and $0.00
+// (PriceCharting uses zero/"-" interchangeably for "no data" — it never
+// legitimately sells a game for nothing).
+function parseUsd(raw: string): number | null {
+  const match = raw.match(/\$?\s*([\d,]+(?:\.\d{1,2})?)/);
   if (!match) return null;
   const value = parseFloat(match[1].replace(/,/g, ""));
-  return Number.isFinite(value) ? value : null;
+  return Number.isFinite(value) && value > 0 ? value : null;
+}
+
+// Reads one price cell (#used_price / #complete_price / #new_price) from
+// the parsed page. The current price is the first <span class="price">
+// in the cell; the "± since last update" figure is a sibling
+// <span class="change"> and must not be picked up.
+function priceFromCell($: cheerio.CheerioAPI, cellId: string): number | null {
+  const cell = $(`#${cellId}`);
+  if (cell.length === 0) return null;
+
+  const priceSpan = cell.find("span.price").first().text().trim();
+  if (priceSpan) return parseUsd(priceSpan);
+
+  // Fallback if the inner markup ever changes: use the cell's own text
+  // with the change figure stripped out.
+  const clone = cell.clone();
+  clone.find("span.change").remove();
+  return parseUsd(clone.text().trim());
 }
 
 async function parsePricesFromProductPage(
@@ -51,15 +82,19 @@ async function parsePricesFromProductPage(
   const html = await res.text();
   const $ = cheerio.load(html);
 
+  // No price table means this isn't a usable product page — PriceCharting
+  // sometimes serves a 200 for near-miss slugs. Treat it like a 404 so
+  // the caller falls through to the search strategy.
+  if ($("#price_data").length === 0) return null;
+
   const title = $("h1").first().text().trim() || $("title").text().trim();
-  const flatText = $("body").text().replace(/\s+/g, " ");
 
   return {
     productUrl: url,
     title,
-    loose: extractPriceNear(flatText, "Loose Price"),
-    cib: extractPriceNear(flatText, "Complete Price"),
-    new: extractPriceNear(flatText, "New Price"),
+    loose: priceFromCell($, "used_price"),
+    cib: priceFromCell($, "complete_price"),
+    new: priceFromCell($, "new_price"),
   };
 }
 
@@ -79,10 +114,12 @@ async function searchProductUrl(
   const html = await res.text();
   const $ = cheerio.load(html);
 
-  // Any link to a product page matches this pattern regardless of which
-  // table/list markup wraps it, which is more resilient than depending
-  // on a specific table id.
-  const firstProductLink = $('a[href^="/game/"]').first().attr("href");
+  // Prefer a link from the results table; fall back to any product link
+  // on the page. (A single exact match redirects straight to the product
+  // page, which parsePricesFromProductPage handles on its own.)
+  const firstProductLink =
+    $('#games_table a[href^="/game/"]').first().attr("href") ||
+    $('a[href^="/game/"]').first().attr("href");
   if (!firstProductLink) return null;
 
   return firstProductLink.startsWith("http")
