@@ -1,6 +1,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { pickScoreBand, type ScoreBand } from "@/lib/score-badge";
+import { statusColor, type PlayStatus } from "@/lib/play-status";
 
 interface GameCardProps {
   id: string;
@@ -12,6 +13,10 @@ interface GameCardProps {
   score: number | null;
   scoreBadgeEnabled: boolean;
   scoreBands: ScoreBand[];
+  playStatus: string;
+  statusBadgeEnabled: boolean;
+  statusColors: Record<PlayStatus, string>;
+  dimCompleted: boolean;
 }
 
 export default function GameCard({
@@ -24,9 +29,14 @@ export default function GameCard({
   score,
   scoreBadgeEnabled,
   scoreBands,
+  playStatus,
+  statusBadgeEnabled,
+  statusColors,
+  dimCompleted,
 }: GameCardProps) {
   const value = valueCibGbp ?? valueLooseGbp;
   const band = scoreBadgeEnabled ? pickScoreBand(score, scoreBands) : null;
+  const dimmed = dimCompleted && playStatus === "completed";
 
   return (
     <Link
@@ -47,6 +57,9 @@ export default function GameCard({
             {title}
           </div>
         )}
+
+        {dimmed && <div className="absolute inset-0 bg-black/60" />}
+
         {band && score !== null && (
           <span
             className="absolute right-2 top-2 flex h-9 w-9 items-center justify-center rounded-full font-display text-xs font-bold shadow-md ring-1 ring-black/20"
@@ -55,6 +68,13 @@ export default function GameCard({
           >
             {Math.round(score)}
           </span>
+        )}
+
+        {statusBadgeEnabled && (
+          <span
+            className="absolute bottom-2 left-2 h-3.5 w-3.5 rounded-full shadow ring-1 ring-black/30"
+            style={{ backgroundColor: statusColor(playStatus, statusColors) }}
+          />
         )}
       </div>
       <div className="flex flex-1 flex-col gap-1 p-3">

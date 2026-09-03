@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { PLATFORM_OPTIONS } from "@/lib/platforms";
+import { PLAY_STATUS_OPTIONS } from "@/lib/play-status";
 
 interface Game {
   id: string;
@@ -12,6 +13,7 @@ interface Game {
   region: string | null;
   condition: string | null;
   format: string;
+  playStatus: string;
   notes: string | null;
   coverUrl: string | null;
   releaseDate: string | null;
@@ -256,6 +258,20 @@ export default function GameDetailPage({ params }: { params: { id: string } }) {
               <option>Sealed</option>
               <option>Box only</option>
               <option>Manual only</option>
+            </select>
+          </div>
+          <div>
+            <label className="label">Play status</label>
+            <select
+              className="field"
+              value={game.playStatus}
+              onChange={(e) => patch({ playStatus: e.target.value })}
+            >
+              {PLAY_STATUS_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
             </select>
           </div>
         </section>

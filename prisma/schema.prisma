@@ -25,6 +25,7 @@ model Game {
   format      String              @default("Physical") // Physical / Digital
   notes       String?
   personalRating Int?             // 1-10, your own score
+  playStatus  String   @default("unplayed") // "unplayed" | "in_progress" | "completed"
   dateAdded   DateTime @default(now())
   datePurchased DateTime?
   purchasePriceGbp Decimal?       @db.Decimal(10, 2)
@@ -97,6 +98,13 @@ model Settings {
   // means the built-in UPCitemdb trial endpoint (see lib/barcode.ts).
   barcodeLookupEnabled Boolean @default(true)
   barcodeApiUrl        String?
+
+  // Home-page play-status dots. statusColors is a JSON string
+  // { unplayed, in_progress, completed } of hex colours — see
+  // lib/play-status.ts. Null means "use the built-in defaults".
+  statusBadgeEnabled Boolean @default(true)
+  statusColors       String?
+  dimCompleted       Boolean @default(true)
 
   updatedAt DateTime @updatedAt
 }

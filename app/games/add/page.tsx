@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { PLATFORM_OPTIONS, pickPreferredPlatform } from "@/lib/platforms";
+import { PLAY_STATUS_OPTIONS } from "@/lib/play-status";
 import BarcodeScanner from "@/components/BarcodeScanner";
 
 interface IgdbHit {
@@ -27,6 +28,7 @@ export default function AddGamePage() {
     region: "",
     condition: "Complete in box",
     format: "Physical",
+    playStatus: "unplayed",
     igdbId: null as number | null,
     coverUrl: "",
     releaseDate: "",
@@ -252,6 +254,20 @@ export default function AddGamePage() {
             >
               <option>Physical</option>
               <option>Digital</option>
+            </select>
+          </div>
+          <div>
+            <label className="label">Play status</label>
+            <select
+              className="field"
+              value={form.playStatus}
+              onChange={(e) => setForm({ ...form, playStatus: e.target.value })}
+            >
+              {PLAY_STATUS_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
             </select>
           </div>
         </div>

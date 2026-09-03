@@ -3,6 +3,11 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { DEFAULT_SCORE_BANDS, type ScoreBand } from "@/lib/score-badge";
+import {
+  DEFAULT_STATUS_COLORS,
+  PLAY_STATUS_OPTIONS,
+  type PlayStatus,
+} from "@/lib/play-status";
 
 interface SettingsShape {
   igdbEnabled: boolean;
@@ -15,6 +20,9 @@ interface SettingsShape {
   scoreBadgeBands: ScoreBand[];
   barcodeLookupEnabled: boolean;
   barcodeApiUrl: string;
+  statusBadgeEnabled: boolean;
+  statusColors: Record<PlayStatus, string>;
+  dimCompleted: boolean;
 }
 
 export default function SettingsPage() {
@@ -30,9 +38,12 @@ export default function SettingsPage() {
   const [accountMsg, setAccountMsg] = useState<string | null>(null);
   const [accountSaving, setAccountSaving] = useState(false);
 
-  // Local working copy of the score bands. Re-synced whenever settings
-  // change (including right after a save, so the saved value wins).
+  // Local working copies, re-synced whenever settings change (including
+  // right after a save, so the saved value wins).
   const [bands, setBands] = useState<ScoreBand[]>([]);
+  const [statusColors, setStatusColors] = useState<Record<PlayStatus, string>>(
+    DEFAULT_STATUS_COLORS
+  );
 
   useEffect(() => {
     fetch("/api/settings")
@@ -41,7 +52,10 @@ export default function SettingsPage() {
   }, []);
 
   useEffect(() => {
-    if (settings) setBands(settings.scoreBadgeBands);
+    if (settings) {
+      setBands(settings.scoreBadgeBands);
+      setStatusColors(settings.statusColors);
+    }
   }, [settings]);
 
   function updateBand(index: number, patch: Partial<ScoreBand>) {
@@ -56,6 +70,14 @@ export default function SettingsPage() {
   function resetBands() {
     setBands(DEFAULT_SCORE_BANDS);
     saveSettings({ scoreBadgeBands: DEFAULT_SCORE_BANDS });
+  }
+
+  function updateStatusColor(key: PlayStatus, hex: string) {
+    setStatusColors((c) => ({ ...c, [key]: hex }));
+  }
+  function resetStatusColors() {
+    setStatusColors(DEFAULT_STATUS_COLORS);
+    saveSettings({ statusColors: DEFAULT_STATUS_COLORS });
   }
 
   async function saveSettings(patch: Partial<SettingsShape> & { twitchClientSecret?: string }) {
@@ -289,6 +311,64 @@ export default function SettingsPage() {
             Save badge colours
           </button>
           <button type="button" onClick={resetBands} className="btn-secondary text-xs">
+            Reset to defaults
+          </button>
+        </div>
+      </section>
+
+      {/* --- Play status --- */}
+      <section className="rounded-card border border-ink-line bg-ink-soft p-5">
+        <div className="flex items-center justify-between">
+          <h2 className="font-display text-lg font-bold text-parchment">Play status</h2>
+          <Toggle
+            checked={settings.statusBadgeEnabled}
+            onChange={(v) => saveSettings({ statusBadgeEnabled: v })}
+          />
+        </div>
+        <p className="mt-1 text-sm text-mute">
+          A coloured dot on the bottom-left of each cover shows whether a game is
+          unplayed, in progress or completed. Set each dot&rsquo;s colour below.
+        </p>
+
+        <div className="mt-4 flex items-center justify-between gap-3">
+          <span className="text-sm text-parchment">Dim completed covers</span>
+          <Toggle
+            checked={settings.dimCompleted}
+            onChange={(v) => saveSettings({ dimCompleted: v })}
+          />
+        </div>
+
+        <div className="mt-4 space-y-2">
+          {PLAY_STATUS_OPTIONS.map((opt) => (
+            <div key={opt.value} className="flex items-center gap-3">
+              <span
+                className="h-4 w-4 rounded-full ring-1 ring-black/30"
+                style={{ backgroundColor: statusColors[opt.value] }}
+              />
+              <span className="flex-1 text-sm text-parchment">{opt.label}</span>
+              <input
+                type="color"
+                className="h-9 w-12 cursor-pointer rounded border border-ink-line bg-ink-soft"
+                value={statusColors[opt.value]}
+                onChange={(e) => updateStatusColor(opt.value, e.target.value)}
+              />
+            </div>
+          ))}
+        </div>
+
+        <div className="mt-4 flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={() => saveSettings({ statusColors })}
+            className="btn-primary text-xs"
+          >
+            Save status colours
+          </button>
+          <button
+            type="button"
+            onClick={resetStatusColors}
+            className="btn-secondary text-xs"
+          >
             Reset to defaults
           </button>
         </div>

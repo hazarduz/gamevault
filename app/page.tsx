@@ -2,6 +2,7 @@ import { Suspense } from "react";
 import { prisma } from "@/lib/prisma";
 import { getSettings } from "@/lib/settings";
 import { parseScoreBands } from "@/lib/score-badge";
+import { parseStatusColors } from "@/lib/play-status";
 import { sortGames, DEFAULT_SORT, isSortValue, type SortValue } from "@/lib/sort-games";
 import GameCard from "@/components/GameCard";
 import SortSelect from "@/components/SortSelect";
@@ -19,6 +20,7 @@ export default async function DashboardPage({
 
   const settings = await getSettings();
   const scoreBands = parseScoreBands(settings.scoreBadgeBands);
+  const statusColors = parseStatusColors(settings.statusColors);
 
   const games = sortGames(
     await prisma.game.findMany({
@@ -90,6 +92,10 @@ export default async function DashboardPage({
               score={g.aggregatedRating}
               scoreBadgeEnabled={settings.scoreBadgeEnabled}
               scoreBands={scoreBands}
+              playStatus={g.playStatus}
+              statusBadgeEnabled={settings.statusBadgeEnabled}
+              statusColors={statusColors}
+              dimCompleted={settings.dimCompleted}
             />
           ))}
         </div>

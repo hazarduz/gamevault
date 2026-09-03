@@ -13,7 +13,14 @@ export const SORT_OPTIONS = [
   { value: "added-desc", label: "Recently added" },
   { value: "released-desc", label: "Release date (newest)" },
   { value: "rating-desc", label: "My rating (high → low)" },
+  { value: "status", label: "Play status (unplayed first)" },
 ] as const;
+
+const STATUS_ORDER: Record<string, number> = {
+  unplayed: 0,
+  in_progress: 1,
+  completed: 2,
+};
 
 export type SortValue = (typeof SORT_OPTIONS)[number]["value"];
 
@@ -59,6 +66,12 @@ export function sortGames(games: Game[], sort: SortValue): Game[] {
       return sorted.sort(desc((g) => g.releaseDate?.getTime() ?? null));
     case "rating-desc":
       return sorted.sort(desc((g) => g.personalRating));
+    case "status":
+      return sorted.sort(
+        (a, b) =>
+          (STATUS_ORDER[a.playStatus] ?? 0) - (STATUS_ORDER[b.playStatus] ?? 0) ||
+          byName(a, b)
+      );
     case "name":
     default:
       return sorted.sort(byName);

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSettings, updateSettings } from "@/lib/settings";
 import { getCurrentUser } from "@/lib/session";
 import { parseScoreBands, sanitizeScoreBands } from "@/lib/score-badge";
+import { parseStatusColors, sanitizeStatusColors } from "@/lib/play-status";
 
 export const dynamic = "force-dynamic";
 
@@ -20,6 +21,9 @@ function serialize(settings: Awaited<ReturnType<typeof getSettings>>) {
     scoreBadgeBands: parseScoreBands(settings.scoreBadgeBands),
     barcodeLookupEnabled: settings.barcodeLookupEnabled,
     barcodeApiUrl: settings.barcodeApiUrl ?? "",
+    statusBadgeEnabled: settings.statusBadgeEnabled,
+    dimCompleted: settings.dimCompleted,
+    statusColors: parseStatusColors(settings.statusColors),
   };
 }
 
@@ -61,6 +65,13 @@ export async function PATCH(req: NextRequest) {
     data.barcodeLookupEnabled = body.barcodeLookupEnabled;
   if (typeof body.barcodeApiUrl === "string")
     data.barcodeApiUrl = body.barcodeApiUrl || null;
+
+  if (typeof body.statusBadgeEnabled === "boolean")
+    data.statusBadgeEnabled = body.statusBadgeEnabled;
+  if (typeof body.dimCompleted === "boolean") data.dimCompleted = body.dimCompleted;
+  if (body.statusColors && typeof body.statusColors === "object") {
+    data.statusColors = JSON.stringify(sanitizeStatusColors(body.statusColors));
+  }
 
   const updated = await updateSettings(data);
   return NextResponse.json(serialize(updated));

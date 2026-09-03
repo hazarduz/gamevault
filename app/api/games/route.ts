@@ -33,6 +33,7 @@ export async function POST(req: NextRequest) {
       region: body.region ?? null,
       condition: body.condition ?? null,
       format: body.format ?? "Physical",
+      playStatus: body.playStatus ?? "unplayed",
       notes: body.notes ?? null,
       igdbId: body.igdbId ?? null,
       coverUrl: body.coverUrl ?? null,
