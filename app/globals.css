@@ -1,0 +1,40 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+::selection {
+  background-color: #E3A63E;
+  color: #0F1116;
+}
+
+* {
+  scrollbar-color: #2A2F3D #0F1116;
+}
+
+body {
+  background-image: radial-gradient(
+    circle at 15% 0%,
+    rgba(227, 166, 62, 0.06),
+    transparent 40%
+  );
+  background-attachment: fixed;
+}
+
+.field {
+  @apply w-full rounded-md border border-ink-line bg-ink-soft px-3 py-2 text-sm text-parchment
+    placeholder:text-mute focus:border-amber focus:outline-none focus:ring-1 focus:ring-amber;
+}
+
+.label {
+  @apply mb-1 block text-sm text-mute;
+}
+
+.btn-primary {
+  @apply rounded-md bg-amber px-4 py-2 text-sm font-medium text-ink transition hover:bg-amber-bright
+    disabled:cursor-not-allowed disabled:opacity-50;
+}
+
+.btn-secondary {
+  @apply rounded-md border border-ink-line bg-transparent px-4 py-2 text-sm font-medium text-parchment
+    transition hover:border-mute disabled:cursor-not-allowed disabled:opacity-50;
+}

@@ -1,0 +1,91 @@
+// GameVault database schema.
+// Add your own fields here any time — run `npm run db:push` afterwards
+// to sync the change straight to Postgres (no migration files needed
+// for a personal single-user project like this).
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Game {
+  id          String   @id @default(cuid())
+
+  // --- Core identity ---
+  title       String
+  platform    String              // e.g. "PS5", "SNES", "Xbox Series X"
+  region      String?             // e.g. "PAL", "NTSC-U", "NTSC-J"
+
+  // --- Your physical copy ---
+  condition   String?             // e.g. "Complete in box", "Loose cart", "Sealed"
+  format      String              @default("Physical") // Physical / Digital
+  notes       String?
+  personalRating Int?             // 1-10, your own score
+  dateAdded   DateTime @default(now())
+  datePurchased DateTime?
+  purchasePriceGbp Decimal?       @db.Decimal(10, 2)
+
+  // --- Current value (scraped or manual) ---
+  valueLooseGbp   Decimal? @db.Decimal(10, 2)
+  valueCibGbp     Decimal? @db.Decimal(10, 2)   // complete in box
+  valueNewGbp     Decimal? @db.Decimal(10, 2)
+  valueUpdatedAt  DateTime?
+  valueSource     String?          // "pricecharting" | "manual"
+
+  // --- IGDB metadata ---
+  igdbId        Int?     @unique
+  coverUrl      String?
+  releaseDate   DateTime?
+  summary       String?  @db.Text
+  genres        String[] @default([])
+  developer     String?
+  publisher     String?
+  aggregatedRating Float?          // IGDB's aggregated critic score (0-100)
+
+  // --- Metacritic (manual or scraped separately) ---
+  metacriticScore Int?
+  metacriticUrl   String?
+
+  // --- How Long to Beat ---
+  hltbMainHours         Float?
+  hltbMainExtraHours    Float?
+  hltbCompletionistHours Float?
+  hltbUpdatedAt         DateTime?
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([title])
+  @@index([platform])
+}
+
+// A single admin account. This app is built for one person, so there's
+// no roles/permissions system — just a username + hashed password.
+model User {
+  id           String   @id @default(cuid())
+  username     String   @unique
+  passwordHash String
+  createdAt    DateTime @default(now())
+}
+
+// One row only (id is always "singleton"). Lets you toggle scrapers and
+// edit API credentials from the Settings page instead of editing .env
+// and redeploying every time.
+model Settings {
+  id                 String  @id @default("singleton")
+
+  igdbEnabled        Boolean @default(true)
+  twitchClientId     String?
+  twitchClientSecret String?
+
+  hltbEnabled        Boolean @default(true)
+
+  priceChartingEnabled Boolean @default(true)
+  currencyApiUrl       String?
+
+  updatedAt DateTime @updatedAt
+}
