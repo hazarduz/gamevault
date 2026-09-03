@@ -24,7 +24,7 @@ export default async function FreePage() {
 
   if (!settings.freeGamesEnabled) {
     return (
-      <div className="max-w-3xl">
+      <div>
         <h1 className="font-display text-2xl font-bold text-parchment">Currently Free</h1>
         <p className="mt-6 text-sm text-mute">
           This page is turned off. An admin can enable it in Settings.
@@ -56,9 +56,9 @@ export default async function FreePage() {
   }
 
   return (
-    <div className="max-w-4xl">
+    <div>
       <h1 className="font-display text-2xl font-bold text-parchment">Currently Free</h1>
-      <p className="mt-1 text-sm text-mute">
+      <p className="mt-1 max-w-2xl text-sm text-mute">
         Games you can claim and keep for free right now, from the Epic Games
         Store and cross-platform giveaway round-ups. Refreshes every{" "}
         {settings.freeGamesTtlHours}

@@ -181,7 +181,7 @@ function Section({
       <h2 className="mb-3 font-display text-sm font-bold uppercase tracking-wide text-mute">
         {title}
       </h2>
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:[grid-template-columns:repeat(auto-fill,minmax(300px,1fr))]">
         {games.map((g) => (
           <Card key={g.id} game={g} have={owned[normalizeTitle(g.title)]} />
         ))}
