@@ -2,8 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense } from "react";
 
-export default function LoginPage() {
+function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [checking, setChecking] = useState(true);
@@ -106,5 +107,15 @@ export default function LoginPage() {
         </button>
       </form>
     </div>
+  );
+}
+
+// useSearchParams() requires a Suspense boundary during static
+// generation, otherwise the production build fails.
+export default function LoginPage() {
+  return (
+    <Suspense fallback={<p className="text-mute">Loading…</p>}>
+      <LoginForm />
+    </Suspense>
   );
 }
