@@ -21,6 +21,7 @@ interface GameCardProps {
   statusBadgeEnabled?: boolean;
   statusColors?: Record<PlayStatus, string>;
   dimCompleted?: boolean;
+  dimStrength?: number;
   format?: string;
   // Wishlist view
   wishlist?: boolean;
@@ -41,6 +42,7 @@ export default function GameCard({
   statusBadgeEnabled = false,
   statusColors,
   dimCompleted = false,
+  dimStrength = 70,
   format = "Physical",
   wishlist = false,
   releaseDate = null,
@@ -82,7 +84,12 @@ export default function GameCard({
           </div>
         )}
 
-        {dimmed && <div className="absolute inset-0 bg-black/75" />}
+        {dimmed && (
+          <div
+            className="absolute inset-0"
+            style={{ backgroundColor: `rgba(0,0,0,${Math.min(95, Math.max(0, dimStrength)) / 100})` }}
+          />
+        )}
 
         <div className="absolute left-2 top-2">
           <PlatformIcon platform={platform} />

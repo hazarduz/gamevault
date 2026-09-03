@@ -16,6 +16,7 @@ interface Prefs {
   statusBadgeEnabled: boolean;
   statusColors: Record<PlayStatus, string>;
   dimCompleted: boolean;
+  dimStrength: number;
   psnEnabled: boolean;
   psnOnlineId: string;
   hasPsnNpsso: boolean;
@@ -74,6 +75,7 @@ export default function SettingsPage() {
   const [statusColors, setStatusColors] = useState<Record<PlayStatus, string>>(
     DEFAULT_STATUS_COLORS
   );
+  const [dimStrength, setDimStrength] = useState(70);
 
   // Users (admin only)
   const [users, setUsers] = useState<UserRow[]>([]);
@@ -89,6 +91,7 @@ export default function SettingsPage() {
     if (prefs) {
       setBands(prefs.scoreBadgeBands);
       setStatusColors(prefs.statusColors);
+      setDimStrength(prefs.dimStrength);
     }
   }, [prefs]);
 
@@ -413,6 +416,25 @@ export default function SettingsPage() {
           <Toggle
             checked={prefs.dimCompleted}
             onChange={(v) => savePrefs({ dimCompleted: v })}
+          />
+        </div>
+
+        <div className={`mt-3 ${prefs.dimCompleted ? "" : "opacity-40"}`}>
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-mute">Dim strength</span>
+            <span className="tabular-nums text-parchment">{dimStrength}%</span>
+          </div>
+          <input
+            type="range"
+            min={20}
+            max={95}
+            step={5}
+            value={dimStrength}
+            disabled={!prefs.dimCompleted}
+            onChange={(e) => setDimStrength(Number(e.target.value))}
+            onPointerUp={(e) => savePrefs({ dimStrength: Number(e.currentTarget.value) })}
+            onKeyUp={(e) => savePrefs({ dimStrength: Number(e.currentTarget.value) })}
+            className="mt-1 w-full accent-amber"
           />
         </div>
 

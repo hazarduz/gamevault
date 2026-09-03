@@ -101,6 +101,7 @@ model UserPrefs {
   statusBadgeEnabled Boolean @default(true)
   statusColors       String?
   dimCompleted       Boolean @default(true)
+  dimStrength        Int     @default(70) // dim overlay opacity, percent
 
   psnEnabled  Boolean @default(false)
   psnOnlineId String?

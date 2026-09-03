@@ -16,6 +16,7 @@ export async function updateUserPrefs(
     statusBadgeEnabled?: boolean;
     statusColors?: string | null;
     dimCompleted?: boolean;
+    dimStrength?: number;
     psnEnabled?: boolean;
     psnOnlineId?: string | null;
     psnNpsso?: string | null;
