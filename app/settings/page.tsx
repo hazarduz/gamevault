@@ -16,6 +16,7 @@ interface Prefs {
   statusBadgeEnabled: boolean;
   statusColors: Record<PlayStatus, string>;
   dimCompleted: boolean;
+  dimPlayedPreviously: boolean;
   dimStrength: number;
   psnEnabled: boolean;
   psnOnlineId: string;
@@ -418,8 +419,19 @@ export default function SettingsPage() {
             onChange={(v) => savePrefs({ dimCompleted: v })}
           />
         </div>
+        <div className="mt-3 flex items-center justify-between gap-3">
+          <span className="text-sm text-parchment">Dim &ldquo;Played previously&rdquo; covers</span>
+          <Toggle
+            checked={prefs.dimPlayedPreviously}
+            onChange={(v) => savePrefs({ dimPlayedPreviously: v })}
+          />
+        </div>
 
-        <div className={`mt-3 ${prefs.dimCompleted ? "" : "opacity-40"}`}>
+        <div
+          className={`mt-3 ${
+            prefs.dimCompleted || prefs.dimPlayedPreviously ? "" : "opacity-40"
+          }`}
+        >
           <div className="flex items-center justify-between text-sm">
             <span className="text-mute">Dim strength</span>
             <span className="tabular-nums text-parchment">{dimStrength}%</span>
@@ -430,7 +442,7 @@ export default function SettingsPage() {
             max={95}
             step={5}
             value={dimStrength}
-            disabled={!prefs.dimCompleted}
+            disabled={!prefs.dimCompleted && !prefs.dimPlayedPreviously}
             onChange={(e) => setDimStrength(Number(e.target.value))}
             onPointerUp={(e) => savePrefs({ dimStrength: Number(e.currentTarget.value) })}
             onKeyUp={(e) => savePrefs({ dimStrength: Number(e.currentTarget.value) })}

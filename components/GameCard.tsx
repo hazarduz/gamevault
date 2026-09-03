@@ -21,6 +21,7 @@ interface GameCardProps {
   statusBadgeEnabled?: boolean;
   statusColors?: Record<PlayStatus, string>;
   dimCompleted?: boolean;
+  dimPlayedPreviously?: boolean;
   dimStrength?: number;
   format?: string;
   // Wishlist view
@@ -42,6 +43,7 @@ export default function GameCard({
   statusBadgeEnabled = false,
   statusColors,
   dimCompleted = false,
+  dimPlayedPreviously = false,
   dimStrength = 70,
   format = "Physical",
   wishlist = false,
@@ -51,8 +53,8 @@ export default function GameCard({
   const band = !wishlist && scoreBadgeEnabled ? pickScoreBand(score, scoreBands) : null;
   const dimmed =
     !wishlist &&
-    dimCompleted &&
-    (playStatus === "completed" || playStatus === "platinum");
+    ((dimCompleted && (playStatus === "completed" || playStatus === "platinum")) ||
+      (dimPlayedPreviously && playStatus === "played_previously"));
 
   const releaseLabel = (() => {
     if (!wishlist) return null;

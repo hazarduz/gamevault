@@ -148,6 +148,7 @@ export default async function DashboardPage({
               statusBadgeEnabled={prefs.statusBadgeEnabled}
               statusColors={statusColors}
               dimCompleted={prefs.dimCompleted}
+              dimPlayedPreviously={prefs.dimPlayedPreviously}
               dimStrength={prefs.dimStrength}
               format={g.format}
             />

@@ -12,6 +12,7 @@ function serialize(p: Awaited<ReturnType<typeof getUserPrefs>>) {
     scoreBadgeBands: parseScoreBands(p.scoreBadgeBands),
     statusBadgeEnabled: p.statusBadgeEnabled,
     dimCompleted: p.dimCompleted,
+    dimPlayedPreviously: p.dimPlayedPreviously,
     dimStrength: p.dimStrength,
     statusColors: parseStatusColors(p.statusColors),
     psnEnabled: p.psnEnabled,
@@ -44,6 +45,8 @@ export async function PATCH(req: NextRequest) {
   if (typeof body.statusBadgeEnabled === "boolean")
     data.statusBadgeEnabled = body.statusBadgeEnabled;
   if (typeof body.dimCompleted === "boolean") data.dimCompleted = body.dimCompleted;
+  if (typeof body.dimPlayedPreviously === "boolean")
+    data.dimPlayedPreviously = body.dimPlayedPreviously;
   if (typeof body.dimStrength === "number" && Number.isFinite(body.dimStrength)) {
     data.dimStrength = Math.min(95, Math.max(20, Math.round(body.dimStrength)));
   }
