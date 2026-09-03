@@ -15,6 +15,12 @@ datasource db {
 model Game {
   id          String   @id @default(cuid())
 
+  // Owner. Nullable only so `db push` can add the column to an existing
+  // table; ensureTenancy() in lib/tenant.ts claims orphan rows for the
+  // admin on first run, and all code sets/filters it.
+  userId      String?
+  user        User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   // --- Core identity ---
   title       String
   platform    String              // e.g. "PS5", "SNES", "Xbox Series X"
@@ -39,7 +45,7 @@ model Game {
   valueSource     String?          // "pricecharting" | "manual"
 
   // --- IGDB metadata ---
-  igdbId        Int?     @unique
+  igdbId        Int?     // unique per user — see @@unique below
   coverUrl      String?
   releaseDate   DateTime?
   summary       String?  @db.Text
@@ -61,23 +67,53 @@ model Game {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
+  @@unique([userId, igdbId])
   @@index([title])
   @@index([platform])
   @@index([wishlist])
+  @@index([userId])
 }
 
-// A single admin account. This app is built for one person, so there's
-// no roles/permissions system — just a username + hashed password.
+// Accounts. The first account created (via /api/auth/register on a fresh
+// install) is the admin; the admin invites everyone else, and each user
+// has a fully separate collection.
 model User {
-  id           String   @id @default(cuid())
-  username     String   @unique
-  passwordHash String
-  createdAt    DateTime @default(now())
+  id              String    @id @default(cuid())
+  username        String    @unique
+  passwordHash    String    @default("") // empty until an invited user sets it
+  role            String    @default("user") // "admin" | "user"
+  createdAt       DateTime  @default(now())
+  inviteToken     String?   @unique
+  inviteExpiresAt DateTime?
+
+  prefs UserPrefs?
+  games Game[]
 }
 
-// One row only (id is always "singleton"). Lets you toggle scrapers and
-// edit API credentials from the Settings page instead of editing .env
-// and redeploying every time.
+// Per-user display preferences + PlayStation trophy credentials. One row
+// per user, created on first read.
+model UserPrefs {
+  userId String @id
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  scoreBadgeEnabled  Boolean @default(true)
+  scoreBadgeBands    String?
+  statusBadgeEnabled Boolean @default(true)
+  statusColors       String?
+  dimCompleted       Boolean @default(true)
+
+  psnEnabled  Boolean @default(false)
+  psnOnlineId String?
+  psnNpsso    String?
+
+  updatedAt DateTime @updatedAt
+}
+
+// One row only (id is always "singleton"). Instance-wide integration
+// config, admin-only. The score/status/PSN columns below are DEPRECATED —
+// they moved to per-user UserPrefs; ensureTenancy() copies their values
+// to the admin's UserPrefs once. They stay here only because dropping
+// columns needs --accept-data-loss on the container's `prisma db push`.
 model Settings {
   id                 String  @id @default("singleton")
 
@@ -85,31 +121,22 @@ model Settings {
   twitchClientId     String?
   twitchClientSecret String?
 
-  // PlayStation trophy sync (see lib/psn.ts). psnNpsso is a secret and
-  // is never returned to the client.
-  psnEnabled  Boolean @default(false)
-  psnOnlineId String?
-  psnNpsso    String?
-
   hltbEnabled        Boolean @default(true)
 
   priceChartingEnabled Boolean @default(true)
   currencyApiUrl       String?
-
-  // Home-page score circles. scoreBadgeBands is a JSON string holding an
-  // array of { min, max, bg, fg } — see lib/score-badge.ts. Null means
-  // "use the built-in defaults".
-  scoreBadgeEnabled Boolean @default(true)
-  scoreBadgeBands   String?
 
   // Barcode -> product-name lookup on the Add a game screen. Null URL
   // means the built-in UPCitemdb trial endpoint (see lib/barcode.ts).
   barcodeLookupEnabled Boolean @default(true)
   barcodeApiUrl        String?
 
-  // Home-page play-status dots. statusColors is a JSON string
-  // { unplayed, in_progress, completed } of hex colours — see
-  // lib/play-status.ts. Null means "use the built-in defaults".
+  // --- DEPRECATED: moved to UserPrefs ---
+  psnEnabled  Boolean @default(false)
+  psnOnlineId String?
+  psnNpsso    String?
+  scoreBadgeEnabled Boolean @default(true)
+  scoreBadgeBands   String?
   statusBadgeEnabled Boolean @default(true)
   statusColors       String?
   dimCompleted       Boolean @default(true)

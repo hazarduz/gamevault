@@ -8,7 +8,8 @@ const PUBLIC_API_PREFIXES = ["/api/auth/"];
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
-  const isPublicPage = PUBLIC_PATHS.includes(pathname);
+  const isPublicPage =
+    PUBLIC_PATHS.includes(pathname) || pathname.startsWith("/invite/");
   const isPublicApi = PUBLIC_API_PREFIXES.some((p) => pathname.startsWith(p));
 
   if (isPublicPage || isPublicApi) {

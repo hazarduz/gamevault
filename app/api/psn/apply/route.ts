@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getCurrentUser } from "@/lib/session";
 
 export const dynamic = "force-dynamic";
 
@@ -7,6 +8,9 @@ export const dynamic = "force-dynamic";
 // The only write in the PSN flow: sets the chosen games to
 // "Platinum Achieved". Never downgrades or touches anything else.
 export async function POST(req: NextRequest) {
+  const user = await getCurrentUser();
+  if (!user) return NextResponse.json({ error: "Not signed in." }, { status: 401 });
+
   let body: any;
   try {
     body = await req.json();
@@ -31,7 +35,7 @@ export async function POST(req: NextRequest) {
   }
 
   const result = await prisma.game.updateMany({
-    where: { id: { in: ids } },
+    where: { id: { in: ids }, userId: user.id },
     data: { playStatus: "platinum" },
   });
 

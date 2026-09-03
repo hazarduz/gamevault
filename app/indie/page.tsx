@@ -6,7 +6,7 @@ import DiscoverGrid from "@/components/DiscoverGrid";
 
 export const dynamic = "force-dynamic";
 
-export default async function DiscoverPage() {
+export default async function IndieDiscoverPage() {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
 
@@ -22,7 +22,9 @@ export default async function DiscoverPage() {
   let error: string | null = null;
   if (owned.length > 0) {
     try {
-      suggestions = await getSimilarGamesForCollection(owned, exclude);
+      suggestions = await getSimilarGamesForCollection(owned, exclude, {
+        indieOnly: true,
+      });
     } catch (e: any) {
       error = e?.message || "Couldn't load suggestions from IGDB.";
     }
@@ -30,10 +32,13 @@ export default async function DiscoverPage() {
 
   return (
     <div>
-      <h1 className="font-display text-2xl font-bold text-parchment">Discover</h1>
+      <h1 className="font-display text-2xl font-bold text-parchment">
+        Indie Discover
+      </h1>
       <p className="mt-1 text-sm text-mute">
-        Games IGDB lists as similar to the ones you own, ranked by how often they
-        recur. This can take a few seconds to load.
+        Similar-games suggestions filtered to IGDB&rsquo;s Indie genre, with the
+        big publishers (EA, Ubisoft, Activision, Nintendo, Sony, Microsoft…)
+        dropped. Takes a few seconds.
       </p>
 
       {error ? (
@@ -42,12 +47,11 @@ export default async function DiscoverPage() {
         </p>
       ) : owned.length === 0 ? (
         <p className="mt-6 text-sm text-mute">
-          Add a few games with IGDB data first — Discover works from your
-          collection.
+          Add a few games with IGDB data first — this works from your collection.
         </p>
       ) : suggestions.length === 0 ? (
         <p className="mt-6 text-sm text-mute">
-          Not enough overlap yet. Add more games and check back.
+          No indie matches yet. Add more games and check back.
         </p>
       ) : (
         <DiscoverGrid suggestions={suggestions} />

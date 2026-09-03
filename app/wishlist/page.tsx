@@ -1,12 +1,17 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
+import { getCurrentUser } from "@/lib/session";
 import GameCard from "@/components/GameCard";
 
 export const dynamic = "force-dynamic";
 
 export default async function WishlistPage() {
+  const user = await getCurrentUser();
+  if (!user) redirect("/login");
+
   const games = await prisma.game.findMany({
-    where: { wishlist: true },
+    where: { userId: user.id, wishlist: true },
     orderBy: [{ releaseDate: "asc" }, { title: "asc" }],
   });
 

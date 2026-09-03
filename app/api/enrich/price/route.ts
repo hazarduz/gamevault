@@ -1,8 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { findPriceChartingMatch, usdToGbp } from "@/lib/pricecharting";
 import { prisma } from "@/lib/prisma";
+import { getCurrentUser } from "@/lib/session";
 
 export async function POST(req: NextRequest) {
+  const user = await getCurrentUser();
+  if (!user) return NextResponse.json({ error: "Not signed in." }, { status: 401 });
+
   const { gameId, title, platform, region } = await req.json();
 
   if (!title || !platform) {
@@ -28,8 +32,8 @@ export async function POST(req: NextRequest) {
     ]);
 
     if (gameId) {
-      await prisma.game.update({
-        where: { id: gameId },
+      await prisma.game.updateMany({
+        where: { id: gameId, userId: user.id },
         data: {
           valueLooseGbp: loose,
           valueCibGbp: cib,

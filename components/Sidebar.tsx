@@ -28,13 +28,14 @@ export default function Sidebar() {
   // Close the mobile drawer on navigation.
   useEffect(() => setMobileOpen(false), [pathname]);
 
-  if (pathname === "/login") return null;
+  if (pathname === "/login" || pathname.startsWith("/invite/")) return null;
 
   const nav = (
     <nav className="flex flex-col gap-1 text-sm">
       <NavLink href="/" label="Collection" pathname={pathname} exact />
 
-      <NavLink href="/discover" label="Discover" pathname={pathname} />
+      <NavLink href="/discover" label="Discover" pathname={pathname} exact />
+      <NavLink href="/indie" label="Indie Discover" pathname={pathname} />
 
       {/* Platforms — alphabetical slot, collapsible filter list */}
       <button

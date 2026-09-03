@@ -26,7 +26,7 @@ export async function POST(req: NextRequest) {
 
   const passwordHash = await hashPassword(password);
   const user = await prisma.user.create({
-    data: { username, passwordHash },
+    data: { username, passwordHash, role: "admin" },
   });
 
   const token = await createSessionToken(user.id);

@@ -10,23 +10,27 @@ import {
 } from "@/lib/play-status";
 import StatusMark from "@/components/StatusMark";
 
-interface SettingsShape {
-  igdbEnabled: boolean;
-  twitchClientId: string;
-  hasTwitchClientSecret: boolean;
-  psnEnabled: boolean;
-  psnOnlineId: string;
-  hasPsnNpsso: boolean;
-  hltbEnabled: boolean;
-  priceChartingEnabled: boolean;
-  currencyApiUrl: string;
+interface Prefs {
   scoreBadgeEnabled: boolean;
   scoreBadgeBands: ScoreBand[];
-  barcodeLookupEnabled: boolean;
-  barcodeApiUrl: string;
   statusBadgeEnabled: boolean;
   statusColors: Record<PlayStatus, string>;
   dimCompleted: boolean;
+  psnEnabled: boolean;
+  psnOnlineId: string;
+  hasPsnNpsso: boolean;
+}
+
+interface Instance {
+  isAdmin: boolean;
+  igdbEnabled: boolean;
+  twitchClientId: string;
+  hasTwitchClientSecret: boolean;
+  hltbEnabled: boolean;
+  priceChartingEnabled: boolean;
+  currencyApiUrl: string;
+  barcodeLookupEnabled: boolean;
+  barcodeApiUrl: string;
 }
 
 interface PsnScan {
@@ -35,12 +39,24 @@ interface PsnScan {
   platinumCount: number;
 }
 
+interface UserRow {
+  id: string;
+  username: string;
+  role: string;
+  pending: boolean;
+  inviteToken: string | null;
+  inviteExpired: boolean;
+}
+
 export default function SettingsPage() {
   const router = useRouter();
-  const [settings, setSettings] = useState<SettingsShape | null>(null);
-  const [twitchClientSecretInput, setTwitchClientSecretInput] = useState("");
-  const [saving, setSaving] = useState(false);
+
+  const [prefs, setPrefs] = useState<Prefs | null>(null);
+  const [instance, setInstance] = useState<Instance | null>(null);
   const [statusMsg, setStatusMsg] = useState<string | null>(null);
+
+  const [twitchSecretInput, setTwitchSecretInput] = useState("");
+  const [psnNpssoInput, setPsnNpssoInput] = useState("");
 
   const [currentPassword, setCurrentPassword] = useState("");
   const [newUsername, setNewUsername] = useState("");
@@ -48,53 +64,90 @@ export default function SettingsPage() {
   const [accountMsg, setAccountMsg] = useState<string | null>(null);
   const [accountSaving, setAccountSaving] = useState(false);
 
-  // PlayStation trophy sync
-  const [psnNpssoInput, setPsnNpssoInput] = useState("");
   const [psnBusy, setPsnBusy] = useState(false);
   const [psnMsg, setPsnMsg] = useState<string | null>(null);
   const [psnScan, setPsnScan] = useState<PsnScan | null>(null);
   const [psnChoices, setPsnChoices] = useState<Record<string, string>>({});
 
-  // Local working copies, re-synced whenever settings change (including
-  // right after a save, so the saved value wins).
+  // Local editable copies, re-synced whenever prefs change.
   const [bands, setBands] = useState<ScoreBand[]>([]);
   const [statusColors, setStatusColors] = useState<Record<PlayStatus, string>>(
     DEFAULT_STATUS_COLORS
   );
 
+  // Users (admin only)
+  const [users, setUsers] = useState<UserRow[]>([]);
+  const [newUserName, setNewUserName] = useState("");
+  const [usersMsg, setUsersMsg] = useState<string | null>(null);
+
   useEffect(() => {
-    fetch("/api/settings")
-      .then((r) => r.json())
-      .then(setSettings);
+    fetch("/api/prefs").then((r) => r.json()).then(setPrefs);
+    fetch("/api/settings").then((r) => r.json()).then(setInstance);
   }, []);
 
   useEffect(() => {
-    if (settings) {
-      setBands(settings.scoreBadgeBands);
-      setStatusColors(settings.statusColors);
+    if (prefs) {
+      setBands(prefs.scoreBadgeBands);
+      setStatusColors(prefs.statusColors);
     }
-  }, [settings]);
+  }, [prefs]);
 
-  function updateBand(index: number, patch: Partial<ScoreBand>) {
-    setBands((bs) => bs.map((b, i) => (i === index ? { ...b, ...patch } : b)));
+  useEffect(() => {
+    if (instance?.isAdmin) loadUsers();
+  }, [instance?.isAdmin]);
+
+  async function savePrefs(
+    patch: Partial<Prefs> & { psnNpsso?: string }
+  ) {
+    setStatusMsg(null);
+    const res = await fetch("/api/prefs", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(patch),
+    });
+    setPrefs(await res.json());
+    setPsnNpssoInput("");
+    setStatusMsg("Saved.");
   }
-  function removeBand(index: number) {
-    setBands((bs) => bs.filter((_, i) => i !== index));
+
+  async function saveInstance(
+    patch: Partial<Instance> & { twitchClientSecret?: string }
+  ) {
+    setStatusMsg(null);
+    const res = await fetch("/api/settings", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(patch),
+    });
+    const data = await res.json();
+    if (data.error) {
+      setStatusMsg(data.error);
+      return;
+    }
+    setInstance(data);
+    setTwitchSecretInput("");
+    setStatusMsg("Saved.");
+  }
+
+  function updateBand(i: number, patch: Partial<ScoreBand>) {
+    setBands((bs) => bs.map((b, idx) => (idx === i ? { ...b, ...patch } : b)));
+  }
+  function removeBand(i: number) {
+    setBands((bs) => bs.filter((_, idx) => idx !== i));
   }
   function addBand() {
     setBands((bs) => [...bs, { min: 0, max: 100, bg: "#000000", fg: "#ffffff" }]);
   }
   function resetBands() {
     setBands(DEFAULT_SCORE_BANDS);
-    saveSettings({ scoreBadgeBands: DEFAULT_SCORE_BANDS });
+    savePrefs({ scoreBadgeBands: DEFAULT_SCORE_BANDS });
   }
-
   function updateStatusColor(key: PlayStatus, hex: string) {
     setStatusColors((c) => ({ ...c, [key]: hex }));
   }
   function resetStatusColors() {
     setStatusColors(DEFAULT_STATUS_COLORS);
-    saveSettings({ statusColors: DEFAULT_STATUS_COLORS });
+    savePrefs({ statusColors: DEFAULT_STATUS_COLORS });
   }
 
   async function scanPsn() {
@@ -150,21 +203,57 @@ export default function SettingsPage() {
     }
   }
 
-  async function saveSettings(
-    patch: Partial<SettingsShape> & { twitchClientSecret?: string; psnNpsso?: string }
-  ) {
-    setSaving(true);
-    setStatusMsg(null);
-    const res = await fetch("/api/settings", {
-      method: "PATCH",
+  async function loadUsers() {
+    const res = await fetch("/api/admin/users");
+    if (res.ok) setUsers(await res.json());
+  }
+  async function inviteUser() {
+    const username = newUserName.trim();
+    if (!username) return;
+    setUsersMsg(null);
+    const res = await fetch("/api/admin/users", {
+      method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(patch),
+      body: JSON.stringify({ username }),
     });
     const data = await res.json();
-    setSettings(data);
-    setSaving(false);
-    setStatusMsg("Saved.");
-    setTwitchClientSecretInput("");
+    if (!res.ok) {
+      setUsersMsg(data.error ?? "Couldn't create the invite.");
+      return;
+    }
+    setNewUserName("");
+    await loadUsers();
+    await copyLink(data.inviteUrl);
+    setUsersMsg(`Invite link for "${username}" copied to the clipboard.`);
+  }
+  async function copyLink(url: string) {
+    try {
+      await navigator.clipboard.writeText(url);
+    } catch {
+      window.prompt("Copy this invite link:", url);
+    }
+  }
+  async function regenInvite(id: string) {
+    const res = await fetch(`/api/admin/users/${id}`, { method: "PATCH" });
+    const data = await res.json();
+    if (res.ok) {
+      await copyLink(data.inviteUrl);
+      setUsersMsg("New invite link copied to the clipboard.");
+      await loadUsers();
+    } else {
+      setUsersMsg(data.error ?? "Couldn't regenerate the link.");
+    }
+  }
+  async function deleteUser(u: UserRow) {
+    if (!confirm(`Delete "${u.username}" and all their games?`)) return;
+    const res = await fetch(`/api/admin/users/${u.id}`, { method: "DELETE" });
+    if (res.ok) {
+      setUsersMsg(`Deleted "${u.username}".`);
+      await loadUsers();
+    } else {
+      const data = await res.json();
+      setUsersMsg(data.error ?? "Couldn't delete that user.");
+    }
   }
 
   async function handleLogout() {
@@ -200,111 +289,32 @@ export default function SettingsPage() {
     }
   }
 
-  if (!settings) return <p className="text-mute">Loading…</p>;
+  if (!prefs || !instance) return <p className="text-mute">Loading…</p>;
 
   return (
     <div className="mx-auto max-w-2xl space-y-10">
       <div>
         <h1 className="font-display text-2xl font-bold text-parchment">Settings</h1>
         <p className="mt-1 text-sm text-mute">
-          Turn scrapers on or off and manage credentials without touching the server.
+          Your display preferences and account.
+          {instance.isAdmin && " Integration credentials are shared across the site."}
         </p>
       </div>
 
       {statusMsg && <p className="text-sm text-amber">{statusMsg}</p>}
 
-      {/* --- IGDB --- */}
-      <section className="rounded-card border border-ink-line bg-ink-soft p-5">
-        <div className="flex items-center justify-between">
-          <h2 className="font-display text-lg font-bold text-parchment">IGDB metadata</h2>
-          <Toggle
-            checked={settings.igdbEnabled}
-            onChange={(v) => saveSettings({ igdbEnabled: v })}
-          />
-        </div>
-        <p className="mt-1 text-sm text-mute">
-          Cover art, release dates, summaries, genres. Requires free Twitch developer credentials.
-        </p>
-        <div className="mt-4 grid grid-cols-2 gap-4">
-          <div>
-            <label className="label">Twitch Client ID</label>
-            <input
-              className="field"
-              defaultValue={settings.twitchClientId}
-              onBlur={(e) => saveSettings({ twitchClientId: e.target.value })}
-            />
-          </div>
-          <div>
-            <label className="label">
-              Twitch Client Secret{" "}
-              {settings.hasTwitchClientSecret && (
-                <span className="text-xs text-mute">(currently set)</span>
-              )}
-            </label>
-            <input
-              type="password"
-              className="field"
-              placeholder={settings.hasTwitchClientSecret ? "••••••••" : ""}
-              value={twitchClientSecretInput}
-              onChange={(e) => setTwitchClientSecretInput(e.target.value)}
-              onBlur={() =>
-                twitchClientSecretInput &&
-                saveSettings({ twitchClientSecret: twitchClientSecretInput })
-              }
-            />
-          </div>
-        </div>
-      </section>
-
-      {/* --- HowLongToBeat --- */}
-      <section className="rounded-card border border-ink-line bg-ink-soft p-5">
-        <div className="flex items-center justify-between">
-          <h2 className="font-display text-lg font-bold text-parchment">HowLongToBeat</h2>
-          <Toggle
-            checked={settings.hltbEnabled}
-            onChange={(v) => saveSettings({ hltbEnabled: v })}
-          />
-        </div>
-        <p className="mt-1 text-sm text-mute">
-          Completion time estimates. Uses an unofficial endpoint with no credentials needed.
-        </p>
-      </section>
-
-      {/* --- PriceCharting --- */}
-      <section className="rounded-card border border-ink-line bg-ink-soft p-5">
-        <div className="flex items-center justify-between">
-          <h2 className="font-display text-lg font-bold text-parchment">PriceCharting</h2>
-          <Toggle
-            checked={settings.priceChartingEnabled}
-            onChange={(v) => saveSettings({ priceChartingEnabled: v })}
-          />
-        </div>
-        <p className="mt-1 text-sm text-mute">
-          Current resale values, converted from USD to GBP.
-        </p>
-        <div className="mt-4">
-          <label className="label">Currency conversion API URL</label>
-          <input
-            className="field"
-            defaultValue={settings.currencyApiUrl}
-            placeholder="https://api.exchangerate.host/latest?base=USD&symbols=GBP"
-            onBlur={(e) => saveSettings({ currencyApiUrl: e.target.value })}
-          />
-        </div>
-      </section>
-
-      {/* --- Score badges --- */}
+      {/* --- Score badges (per-user) --- */}
       <section className="rounded-card border border-ink-line bg-ink-soft p-5">
         <div className="flex items-center justify-between">
           <h2 className="font-display text-lg font-bold text-parchment">Score badges</h2>
           <Toggle
-            checked={settings.scoreBadgeEnabled}
-            onChange={(v) => saveSettings({ scoreBadgeEnabled: v })}
+            checked={prefs.scoreBadgeEnabled}
+            onChange={(v) => savePrefs({ scoreBadgeEnabled: v })}
           />
         </div>
         <p className="mt-1 text-sm text-mute">
-          The circle on each cover on the home page shows that game&rsquo;s IGDB
-          score. Pick the circle and text colour for each score range.
+          The circle on each cover shows that game&rsquo;s IGDB score. Pick the
+          circle and text colour for each range.
         </p>
 
         <div className="mt-4 space-y-2">
@@ -333,9 +343,7 @@ export default function SettingsPage() {
                 max={100}
                 className="field"
                 value={band.min}
-                onChange={(e) =>
-                  updateBand(i, { min: clampScore(parseInt(e.target.value, 10)) })
-                }
+                onChange={(e) => updateBand(i, { min: clampScore(parseInt(e.target.value, 10)) })}
               />
               <input
                 type="number"
@@ -343,9 +351,7 @@ export default function SettingsPage() {
                 max={100}
                 className="field"
                 value={band.max}
-                onChange={(e) =>
-                  updateBand(i, { max: clampScore(parseInt(e.target.value, 10)) })
-                }
+                onChange={(e) => updateBand(i, { max: clampScore(parseInt(e.target.value, 10)) })}
               />
               <input
                 type="color"
@@ -377,7 +383,7 @@ export default function SettingsPage() {
           </button>
           <button
             type="button"
-            onClick={() => saveSettings({ scoreBadgeBands: bands })}
+            onClick={() => savePrefs({ scoreBadgeBands: bands })}
             className="btn-primary text-xs"
           >
             Save badge colours
@@ -388,27 +394,25 @@ export default function SettingsPage() {
         </div>
       </section>
 
-      {/* --- Play status --- */}
+      {/* --- Play status (per-user) --- */}
       <section className="rounded-card border border-ink-line bg-ink-soft p-5">
         <div className="flex items-center justify-between">
           <h2 className="font-display text-lg font-bold text-parchment">Play status</h2>
           <Toggle
-            checked={settings.statusBadgeEnabled}
-            onChange={(v) => saveSettings({ statusBadgeEnabled: v })}
+            checked={prefs.statusBadgeEnabled}
+            onChange={(v) => savePrefs({ statusBadgeEnabled: v })}
           />
         </div>
         <p className="mt-1 text-sm text-mute">
-          A coloured dot on the bottom-left of each cover shows whether a game is
-          unplayed, in progress or completed. Set each dot&rsquo;s colour below.
+          The dot on the bottom-left of each cover shows your progress. Set each
+          dot&rsquo;s colour below.
         </p>
 
         <div className="mt-4 flex items-center justify-between gap-3">
-          <span className="text-sm text-parchment">
-            Dim completed &amp; platinum covers
-          </span>
+          <span className="text-sm text-parchment">Dim completed &amp; platinum covers</span>
           <Toggle
-            checked={settings.dimCompleted}
-            onChange={(v) => saveSettings({ dimCompleted: v })}
+            checked={prefs.dimCompleted}
+            onChange={(v) => savePrefs({ dimCompleted: v })}
           />
         </div>
 
@@ -432,30 +436,24 @@ export default function SettingsPage() {
         <div className="mt-4 flex flex-wrap gap-2">
           <button
             type="button"
-            onClick={() => saveSettings({ statusColors })}
+            onClick={() => savePrefs({ statusColors })}
             className="btn-primary text-xs"
           >
             Save status colours
           </button>
-          <button
-            type="button"
-            onClick={resetStatusColors}
-            className="btn-secondary text-xs"
-          >
+          <button type="button" onClick={resetStatusColors} className="btn-secondary text-xs">
             Reset to defaults
           </button>
         </div>
       </section>
 
-      {/* --- PlayStation trophies --- */}
+      {/* --- PlayStation trophies (per-user) --- */}
       <section className="rounded-card border border-ink-line bg-ink-soft p-5">
         <div className="flex items-center justify-between">
-          <h2 className="font-display text-lg font-bold text-parchment">
-            PlayStation trophies
-          </h2>
+          <h2 className="font-display text-lg font-bold text-parchment">PlayStation trophies</h2>
           <Toggle
-            checked={settings.psnEnabled}
-            onChange={(v) => saveSettings({ psnEnabled: v })}
+            checked={prefs.psnEnabled}
+            onChange={(v) => savePrefs({ psnEnabled: v })}
           />
         </div>
         <p className="mt-1 text-sm text-mute">
@@ -481,26 +479,22 @@ export default function SettingsPage() {
             <label className="label">PSN Online ID</label>
             <input
               className="field"
-              defaultValue={settings.psnOnlineId}
-              onBlur={(e) => saveSettings({ psnOnlineId: e.target.value })}
+              defaultValue={prefs.psnOnlineId}
+              onBlur={(e) => savePrefs({ psnOnlineId: e.target.value })}
             />
           </div>
           <div>
             <label className="label">
               NPSSO token{" "}
-              {settings.hasPsnNpsso && (
-                <span className="text-xs text-mute">(currently set)</span>
-              )}
+              {prefs.hasPsnNpsso && <span className="text-xs text-mute">(currently set)</span>}
             </label>
             <input
               type="password"
               className="field"
-              placeholder={settings.hasPsnNpsso ? "••••••••" : ""}
+              placeholder={prefs.hasPsnNpsso ? "••••••••" : ""}
               value={psnNpssoInput}
               onChange={(e) => setPsnNpssoInput(e.target.value)}
-              onBlur={() =>
-                psnNpssoInput && saveSettings({ psnNpsso: psnNpssoInput })
-              }
+              onBlur={() => psnNpssoInput && savePrefs({ psnNpsso: psnNpssoInput })}
             />
           </div>
         </div>
@@ -509,7 +503,7 @@ export default function SettingsPage() {
           <button
             type="button"
             onClick={scanPsn}
-            disabled={psnBusy || !settings.psnEnabled}
+            disabled={psnBusy || !prefs.psnEnabled}
             className="btn-secondary text-xs"
           >
             {psnBusy ? "Working…" : "Scan for platinums"}
@@ -522,74 +516,36 @@ export default function SettingsPage() {
             {psnScan.proposals.map((p) => {
               const rowKey = `${p.psnName}|${p.psnPlatform}`;
               return (
-              <div
-                key={rowKey}
-                className="grid grid-cols-1 gap-1 sm:grid-cols-[1fr_1fr] sm:items-center sm:gap-3"
-              >
-                <span className="text-sm text-parchment">
-                  {p.psnName}
-                  <span className="text-xs text-mute"> · {p.psnPlatform}</span>
-                </span>
-                <select
-                  className="field"
-                  value={psnChoices[rowKey] ?? ""}
-                  onChange={(e) =>
-                    setPsnChoices((c) => ({ ...c, [rowKey]: e.target.value }))
-                  }
+                <div
+                  key={rowKey}
+                  className="grid grid-cols-1 gap-1 sm:grid-cols-[1fr_1fr] sm:items-center sm:gap-3"
                 >
-                  <option value="">— skip —</option>
-                  {psnScan.games.map((g) => (
-                    <option key={g.id} value={g.id}>
-                      {g.title} — {g.platform}
-                    </option>
-                  ))}
-                </select>
-              </div>
+                  <span className="text-sm text-parchment">
+                    {p.psnName}
+                    <span className="text-xs text-mute"> · {p.psnPlatform}</span>
+                  </span>
+                  <select
+                    className="field"
+                    value={psnChoices[rowKey] ?? ""}
+                    onChange={(e) => setPsnChoices((c) => ({ ...c, [rowKey]: e.target.value }))}
+                  >
+                    <option value="">— skip —</option>
+                    {psnScan.games.map((g) => (
+                      <option key={g.id} value={g.id}>
+                        {g.title} — {g.platform}
+                      </option>
+                    ))}
+                  </select>
+                </div>
               );
             })}
-
             <div className="pt-2">
-              <button
-                type="button"
-                onClick={applyPsn}
-                disabled={psnBusy}
-                className="btn-primary text-xs"
-              >
+              <button type="button" onClick={applyPsn} disabled={psnBusy} className="btn-primary text-xs">
                 Apply selected
               </button>
             </div>
           </div>
         )}
-      </section>
-
-      {/* --- Barcode lookup --- */}
-      <section className="rounded-card border border-ink-line bg-ink-soft p-5">
-        <div className="flex items-center justify-between">
-          <h2 className="font-display text-lg font-bold text-parchment">Barcode lookup</h2>
-          <Toggle
-            checked={settings.barcodeLookupEnabled}
-            onChange={(v) => saveSettings({ barcodeLookupEnabled: v })}
-          />
-        </div>
-        <p className="mt-1 text-sm text-mute">
-          Powers the &ldquo;Scan barcode&rdquo; button on the Add a game screen.
-          Resolves a scanned UPC/EAN to a product name, which is then searched on
-          IGDB. Default is UPCitemdb&rsquo;s free tier (no key, ~100/day).
-        </p>
-        <div className="mt-4">
-          <label className="label">
-            Barcode API URL{" "}
-            <span className="text-xs text-mute">
-              (barcode appended, or use a {"{code}"} placeholder)
-            </span>
-          </label>
-          <input
-            className="field"
-            defaultValue={settings.barcodeApiUrl}
-            placeholder="https://api.upcitemdb.com/prod/trial/lookup?upc="
-            onBlur={(e) => saveSettings({ barcodeApiUrl: e.target.value })}
-          />
-        </div>
       </section>
 
       {/* --- Account --- */}
@@ -630,11 +586,193 @@ export default function SettingsPage() {
             {accountSaving ? "Saving…" : "Update account"}
           </button>
         </form>
-
         <button onClick={handleLogout} className="btn-secondary mt-4 w-full">
           Log out
         </button>
       </section>
+
+      {instance.isAdmin && (
+        <>
+          <div className="pt-2">
+            <h2 className="font-display text-lg font-bold text-amber">
+              Site administration
+            </h2>
+            <p className="mt-1 text-sm text-mute">
+              These apply to everyone on this GameVault.
+            </p>
+          </div>
+
+          {/* --- Users --- */}
+          <section className="rounded-card border border-ink-line bg-ink-soft p-5">
+            <h2 className="font-display text-lg font-bold text-parchment">Users</h2>
+            <p className="mt-1 text-sm text-mute">
+              Create an account, then send the person their invite link to set a
+              password. Each user has a completely separate collection.
+            </p>
+
+            <div className="mt-4 flex flex-wrap gap-2">
+              <input
+                className="field flex-1"
+                placeholder="New username"
+                value={newUserName}
+                onChange={(e) => setNewUserName(e.target.value)}
+              />
+              <button type="button" onClick={inviteUser} className="btn-primary text-xs">
+                Create &amp; copy invite link
+              </button>
+            </div>
+            {usersMsg && <p className="mt-2 text-xs text-amber">{usersMsg}</p>}
+
+            <div className="mt-4 space-y-2">
+              {users.map((u) => (
+                <div
+                  key={u.id}
+                  className="flex flex-wrap items-center gap-2 border-t border-ink-line pt-2 text-sm"
+                >
+                  <span className="flex-1 text-parchment">
+                    {u.username}
+                    {u.role === "admin" && (
+                      <span className="ml-2 text-xs text-amber">admin</span>
+                    )}
+                    {u.pending && (
+                      <span className="ml-2 text-xs text-mute">
+                        {u.inviteExpired ? "invite expired" : "invite pending"}
+                      </span>
+                    )}
+                  </span>
+                  {u.pending && (
+                    <button
+                      type="button"
+                      onClick={() => regenInvite(u.id)}
+                      className="btn-secondary text-xs"
+                    >
+                      {u.inviteExpired ? "New link" : "Copy link"}
+                    </button>
+                  )}
+                  {u.role !== "admin" && (
+                    <button
+                      type="button"
+                      onClick={() => deleteUser(u)}
+                      className="btn-secondary text-xs text-red-400"
+                    >
+                      Delete
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+          </section>
+
+          {/* --- IGDB --- */}
+          <section className="rounded-card border border-ink-line bg-ink-soft p-5">
+            <div className="flex items-center justify-between">
+              <h2 className="font-display text-lg font-bold text-parchment">IGDB metadata</h2>
+              <Toggle
+                checked={instance.igdbEnabled}
+                onChange={(v) => saveInstance({ igdbEnabled: v })}
+              />
+            </div>
+            <p className="mt-1 text-sm text-mute">
+              Cover art, release dates, summaries, genres, Discover, the calendar.
+              Requires free Twitch developer credentials.
+            </p>
+            <div className="mt-4 grid grid-cols-2 gap-4">
+              <div>
+                <label className="label">Twitch Client ID</label>
+                <input
+                  className="field"
+                  defaultValue={instance.twitchClientId}
+                  onBlur={(e) => saveInstance({ twitchClientId: e.target.value })}
+                />
+              </div>
+              <div>
+                <label className="label">
+                  Twitch Client Secret{" "}
+                  {instance.hasTwitchClientSecret && (
+                    <span className="text-xs text-mute">(currently set)</span>
+                  )}
+                </label>
+                <input
+                  type="password"
+                  className="field"
+                  placeholder={instance.hasTwitchClientSecret ? "••••••••" : ""}
+                  value={twitchSecretInput}
+                  onChange={(e) => setTwitchSecretInput(e.target.value)}
+                  onBlur={() =>
+                    twitchSecretInput && saveInstance({ twitchClientSecret: twitchSecretInput })
+                  }
+                />
+              </div>
+            </div>
+          </section>
+
+          {/* --- HowLongToBeat --- */}
+          <section className="rounded-card border border-ink-line bg-ink-soft p-5">
+            <div className="flex items-center justify-between">
+              <h2 className="font-display text-lg font-bold text-parchment">HowLongToBeat</h2>
+              <Toggle
+                checked={instance.hltbEnabled}
+                onChange={(v) => saveInstance({ hltbEnabled: v })}
+              />
+            </div>
+            <p className="mt-1 text-sm text-mute">
+              Completion time estimates. Unofficial endpoint, no credentials needed.
+            </p>
+          </section>
+
+          {/* --- PriceCharting --- */}
+          <section className="rounded-card border border-ink-line bg-ink-soft p-5">
+            <div className="flex items-center justify-between">
+              <h2 className="font-display text-lg font-bold text-parchment">PriceCharting</h2>
+              <Toggle
+                checked={instance.priceChartingEnabled}
+                onChange={(v) => saveInstance({ priceChartingEnabled: v })}
+              />
+            </div>
+            <p className="mt-1 text-sm text-mute">
+              Current resale values, converted from USD to GBP.
+            </p>
+            <div className="mt-4">
+              <label className="label">Currency conversion API URL</label>
+              <input
+                className="field"
+                defaultValue={instance.currencyApiUrl}
+                placeholder="https://open.er-api.com/v6/latest/USD"
+                onBlur={(e) => saveInstance({ currencyApiUrl: e.target.value })}
+              />
+            </div>
+          </section>
+
+          {/* --- Barcode lookup --- */}
+          <section className="rounded-card border border-ink-line bg-ink-soft p-5">
+            <div className="flex items-center justify-between">
+              <h2 className="font-display text-lg font-bold text-parchment">Barcode lookup</h2>
+              <Toggle
+                checked={instance.barcodeLookupEnabled}
+                onChange={(v) => saveInstance({ barcodeLookupEnabled: v })}
+              />
+            </div>
+            <p className="mt-1 text-sm text-mute">
+              Powers the &ldquo;Scan barcode&rdquo; button on the Add a game
+              screen. Default is UPCitemdb&rsquo;s free tier.
+            </p>
+            <div className="mt-4">
+              <label className="label">
+                Barcode API URL{" "}
+                <span className="text-xs text-mute">
+                  (barcode appended, or use a {"{code}"} placeholder)
+                </span>
+              </label>
+              <input
+                className="field"
+                defaultValue={instance.barcodeApiUrl}
+                placeholder="https://api.upcitemdb.com/prod/trial/lookup?upc="
+                onBlur={(e) => saveInstance({ barcodeApiUrl: e.target.value })}
+              />
+            </div>
+          </section>
+        </>
+      )}
     </div>
   );
 }

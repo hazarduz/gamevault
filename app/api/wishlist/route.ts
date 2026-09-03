@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getCurrentUser } from "@/lib/session";
 
 export const dynamic = "force-dynamic";
 
@@ -8,6 +9,9 @@ export const dynamic = "force-dynamic";
 // Discover page passes wishlist:false for "Add to collection". Used by
 // the Calendar and Discover buttons.
 export async function POST(req: NextRequest) {
+  const user = await getCurrentUser();
+  if (!user) return NextResponse.json({ error: "Not signed in." }, { status: 401 });
+
   let body: any;
   try {
     body = await req.json();
@@ -25,7 +29,9 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const existing = await prisma.game.findUnique({ where: { igdbId } });
+  const existing = await prisma.game.findFirst({
+    where: { userId: user.id, igdbId },
+  });
   if (existing) {
     return NextResponse.json(
       {
@@ -43,6 +49,7 @@ export async function POST(req: NextRequest) {
 
     const game = await prisma.game.create({
       data: {
+        userId: user.id,
         title: detail.title,
         platform,
         wishlist,

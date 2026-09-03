@@ -47,7 +47,7 @@ export default function GameDetailPage({ params }: { params: { id: string } }) {
   useEffect(() => {
     fetch(`/api/games/${params.id}`)
       .then((r) => r.json())
-      .then((data) => setGame(data))
+      .then((data) => setGame(data && !data.error ? data : null))
       .finally(() => setLoading(false));
   }, [params.id]);
 

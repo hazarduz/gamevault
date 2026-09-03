@@ -1,6 +1,8 @@
 import { Suspense } from "react";
+import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
-import { getSettings } from "@/lib/settings";
+import { getCurrentUser } from "@/lib/session";
+import { getUserPrefs } from "@/lib/prefs";
 import { parseScoreBands } from "@/lib/score-badge";
 import { parseStatusColors } from "@/lib/play-status";
 import { sortGames, DEFAULT_SORT, isSortValue, type SortValue } from "@/lib/sort-games";
@@ -15,17 +17,21 @@ export default async function DashboardPage({
 }: {
   searchParams: { q?: string; sort?: string; platform?: string };
 }) {
+  const user = await getCurrentUser();
+  if (!user) redirect("/login");
+
   const q = searchParams.q?.trim();
   const platform = searchParams.platform?.trim() || undefined;
   const sort: SortValue = isSortValue(searchParams.sort) ? searchParams.sort : DEFAULT_SORT;
 
-  const settings = await getSettings();
-  const scoreBands = parseScoreBands(settings.scoreBadgeBands);
-  const statusColors = parseStatusColors(settings.statusColors);
+  const prefs = await getUserPrefs(user.id);
+  const scoreBands = parseScoreBands(prefs.scoreBadgeBands);
+  const statusColors = parseStatusColors(prefs.statusColors);
 
   const games = sortGames(
     await prisma.game.findMany({
       where: {
+        userId: user.id,
         wishlist: false,
         ...(platform ? { platform } : {}),
         ...(q ? { title: { contains: q, mode: "insensitive" as const } } : {}),
@@ -112,12 +118,12 @@ export default async function DashboardPage({
               valueCibGbp={g.valueCibGbp ? Number(g.valueCibGbp) : null}
               valueLooseGbp={g.valueLooseGbp ? Number(g.valueLooseGbp) : null}
               score={g.aggregatedRating}
-              scoreBadgeEnabled={settings.scoreBadgeEnabled}
+              scoreBadgeEnabled={prefs.scoreBadgeEnabled}
               scoreBands={scoreBands}
               playStatus={g.playStatus}
-              statusBadgeEnabled={settings.statusBadgeEnabled}
+              statusBadgeEnabled={prefs.statusBadgeEnabled}
               statusColors={statusColors}
-              dimCompleted={settings.dimCompleted}
+              dimCompleted={prefs.dimCompleted}
             />
           ))}
         </div>

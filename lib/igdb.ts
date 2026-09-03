@@ -222,11 +222,46 @@ export interface SimilarSuggestion {
   count: number; // how many owned games list this as "similar"
 }
 
+// Publishers whose games are excluded from Indie Discover. Matched
+// case-insensitively as substrings of the publisher company name.
+const AAA_PUBLISHERS = [
+  "electronic arts",
+  "ea games",
+  "ea sports",
+  "ubisoft",
+  "activision",
+  "blizzard",
+  "sony interactive",
+  "sony computer",
+  "playstation",
+  "microsoft",
+  "xbox game studios",
+  "bethesda",
+  "zenimax",
+  "take-two",
+  "take two",
+  "rockstar",
+  "2k ",
+  "nintendo",
+  "square enix",
+  "capcom",
+  "bandai namco",
+  "namco",
+  "sega",
+  "konami",
+  "warner bros",
+  "wb games",
+];
+
+const INDIE_GENRE_ID = 32; // IGDB "Indie"
+
 // Aggregate IGDB's similar_games across every owned game, drop anything
-// already owned/wishlisted, rank by recurrence. Powers Discover.
+// already owned/wishlisted, rank by recurrence. Powers Discover and
+// (with indieOnly) Indie Discover.
 export async function getSimilarGamesForCollection(
   ownedIgdbIds: number[],
-  excludeIgdbIds: Set<number>
+  excludeIgdbIds: Set<number>,
+  opts: { indieOnly?: boolean } = {}
 ): Promise<SimilarSuggestion[]> {
   if (ownedIgdbIds.length === 0) return [];
 
@@ -250,19 +285,41 @@ export async function getSimilarGamesForCollection(
   }
   if (tally.size === 0) return [];
 
+  // For the indie view, cast a wider net before filtering.
   const topIds = [...tally.entries()]
     .sort((a, b) => b[1] - a[1])
-    .slice(0, 40)
+    .slice(0, opts.indieOnly ? 120 : 40)
     .map(([id]) => id);
 
-  const details: any[] = await igdbQuery(
-    "games",
-    `where id = (${topIds.join(",")});
-     fields name, cover.image_id, first_release_date, rating, summary, platforms.name;
-     limit 40;`
+  const extraFields = opts.indieOnly
+    ? ", genres, involved_companies.company.name, involved_companies.publisher"
+    : "";
+
+  const details: any[] = await withTimeout(
+    igdbQuery(
+      "games",
+      `where id = (${topIds.join(",")});
+       fields name, cover.image_id, first_release_date, rating, summary, platforms.name${extraFields};
+       limit 120;`
+    ),
+    25_000,
+    "IGDB discover detail"
   );
 
-  return details
+  const filtered = opts.indieOnly
+    ? details.filter((g) => {
+        const isIndie = ((g.genres ?? []) as number[]).includes(INDIE_GENRE_ID);
+        if (!isIndie) return false;
+        const publishers = ((g.involved_companies ?? []) as any[])
+          .filter((c) => c.publisher)
+          .map((c) => String(c.company?.name ?? "").toLowerCase());
+        return !publishers.some((name) =>
+          AAA_PUBLISHERS.some((bad) => name.includes(bad))
+        );
+      })
+    : details;
+
+  return filtered
     .map((g) => ({
       igdbId: g.id,
       title: g.name,
@@ -275,5 +332,6 @@ export async function getSimilarGamesForCollection(
       platforms: (g.platforms ?? []).map((p: any) => p.name),
       count: tally.get(g.id) ?? 0,
     }))
-    .sort((a, b) => b.count - a.count || (b.rating ?? 0) - (a.rating ?? 0));
+    .sort((a, b) => b.count - a.count || (b.rating ?? 0) - (a.rating ?? 0))
+    .slice(0, 40);
 }

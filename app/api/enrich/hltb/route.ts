@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getCurrentUser } from "@/lib/session";
 
 // Every failure path in here returns JSON. The client does
 // `await res.json()` before checking res.ok, so if this route ever
@@ -10,6 +11,9 @@ import { prisma } from "@/lib/prisma";
 // reaches the UI.
 export async function POST(req: NextRequest) {
   try {
+    const user = await getCurrentUser();
+    if (!user) return NextResponse.json({ error: "Not signed in." }, { status: 401 });
+
     let body: any;
     try {
       body = await req.json();
@@ -36,8 +40,8 @@ export async function POST(req: NextRequest) {
     const best = results[0];
 
     if (gameId) {
-      await prisma.game.update({
-        where: { id: gameId },
+      await prisma.game.updateMany({
+        where: { id: gameId, userId: user.id },
         data: {
           hltbMainHours: best.mainHours,
           hltbMainExtraHours: best.mainExtraHours,

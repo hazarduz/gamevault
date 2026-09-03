@@ -1,13 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getCurrentUser } from "@/lib/session";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(req: NextRequest) {
+  const user = await getCurrentUser();
+  if (!user) return NextResponse.json({ error: "Not signed in." }, { status: 401 });
+
   const q = req.nextUrl.searchParams.get("q");
 
   const games = await prisma.game.findMany({
     where: {
+      userId: user.id,
       wishlist: false,
       ...(q ? { title: { contains: q, mode: "insensitive" as const } } : {}),
     },
@@ -18,6 +23,9 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  const user = await getCurrentUser();
+  if (!user) return NextResponse.json({ error: "Not signed in." }, { status: 401 });
+
   const body = await req.json();
 
   if (!body.title || !body.platform) {
@@ -29,6 +37,7 @@ export async function POST(req: NextRequest) {
 
   const game = await prisma.game.create({
     data: {
+      userId: user.id,
       title: body.title,
       platform: body.platform,
       region: body.region ?? null,

@@ -1,10 +1,15 @@
+import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
+import { getCurrentUser } from "@/lib/session";
 import { getUpcomingReleases, type UpcomingRelease } from "@/lib/igdb";
 import CalendarView from "@/components/CalendarView";
 
 export const dynamic = "force-dynamic";
 
 export default async function CalendarPage() {
+  const user = await getCurrentUser();
+  if (!user) redirect("/login");
+
   let releases: UpcomingRelease[] = [];
   let error: string | null = null;
   try {
@@ -15,12 +20,12 @@ export default async function CalendarPage() {
 
   const [ownedRows, existingRows] = await Promise.all([
     prisma.game.findMany({
-      where: { wishlist: false },
+      where: { userId: user.id, wishlist: false },
       select: { platform: true },
       distinct: ["platform"],
     }),
     prisma.game.findMany({
-      where: { igdbId: { not: null } },
+      where: { userId: user.id, igdbId: { not: null } },
       select: { igdbId: true },
     }),
   ]);

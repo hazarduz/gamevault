@@ -12,7 +12,6 @@
 // a bundling problem or a wrong export name shows up as a catchable
 // runtime error (a 502 with a real message) instead of failing the
 // whole production build.
-import { getSettings } from "@/lib/settings";
 
 async function loadPsnApi() {
   const mod: any = await import("psn-api");
@@ -56,12 +55,19 @@ export interface MatchCandidate {
   platform: string;
 }
 
-async function authorize(): Promise<{ accessToken: string; onlineId: string }> {
-  const settings = await getSettings();
-  if (!settings.psnEnabled) {
+export interface PsnCredentials {
+  psnEnabled: boolean;
+  psnOnlineId: string | null;
+  psnNpsso: string | null;
+}
+
+async function authorize(
+  creds: PsnCredentials
+): Promise<{ accessToken: string; onlineId: string }> {
+  if (!creds.psnEnabled) {
     throw new Error("PlayStation sync is turned off in Settings.");
   }
-  if (!settings.psnNpsso) {
+  if (!creds.psnNpsso) {
     throw new Error("No PlayStation token set — add your NPSSO token in Settings.");
   }
 
@@ -69,7 +75,7 @@ async function authorize(): Promise<{ accessToken: string; onlineId: string }> {
 
   let accessCode: string;
   try {
-    accessCode = await exchangeNpssoForAccessCode(settings.psnNpsso);
+    accessCode = await exchangeNpssoForAccessCode(creds.psnNpsso);
   } catch {
     throw new Error(
       "PlayStation token was rejected — it has most likely expired. Grab a fresh NPSSO value (see the steps in Settings)."
@@ -77,7 +83,7 @@ async function authorize(): Promise<{ accessToken: string; onlineId: string }> {
   }
 
   const tokens = await exchangeAccessCodeForAuthTokens(accessCode);
-  return { accessToken: tokens.accessToken, onlineId: settings.psnOnlineId ?? "" };
+  return { accessToken: tokens.accessToken, onlineId: creds.psnOnlineId ?? "" };
 }
 
 async function resolveAccountId(
@@ -132,12 +138,14 @@ function withTimeout<T>(work: Promise<T>, ms: number, label: string): Promise<T>
   ]);
 }
 
-export function getEarnedPlatinumTitles(): Promise<PsnPlatinumTitle[]> {
-  return withTimeout(scanPlatinums(), 45_000, "PlayStation trophy scan");
+export function getEarnedPlatinumTitles(
+  creds: PsnCredentials
+): Promise<PsnPlatinumTitle[]> {
+  return withTimeout(scanPlatinums(creds), 45_000, "PlayStation trophy scan");
 }
 
-async function scanPlatinums(): Promise<PsnPlatinumTitle[]> {
-  const { accessToken, onlineId } = await authorize();
+async function scanPlatinums(creds: PsnCredentials): Promise<PsnPlatinumTitle[]> {
+  const { accessToken, onlineId } = await authorize(creds);
   const accountId = await resolveAccountId(accessToken, onlineId);
   const { getUserTitles } = await loadPsnApi();
 
