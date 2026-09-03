@@ -151,6 +151,43 @@ function coverUrl(imageId: string | undefined): string | null {
     : null;
 }
 
+// Full detail for many games in a single IGDB call — used by the bulk
+// photo import. Same fields as getIgdbGameDetail.
+export async function getIgdbGameDetailsBatch(
+  ids: number[]
+): Promise<Map<number, IgdbGameDetail>> {
+  const map = new Map<number, IgdbGameDetail>();
+  const unique = [...new Set(ids.filter((n) => Number.isInteger(n) && n > 0))];
+  if (unique.length === 0) return map;
+
+  const results: any[] = await igdbQuery(
+    "games",
+    `fields name, cover.image_id, first_release_date, summary, genres.name,
+      involved_companies.company.name, involved_companies.developer,
+      involved_companies.publisher, aggregated_rating;
+     where id = (${unique.join(",")});
+     limit ${Math.max(unique.length, 10)};`
+  );
+
+  for (const g of results) {
+    const companies = g.involved_companies ?? [];
+    map.set(g.id, {
+      igdbId: g.id,
+      title: g.name,
+      coverUrl: coverUrl(g.cover?.image_id),
+      releaseDate: g.first_release_date
+        ? new Date(g.first_release_date * 1000).toISOString()
+        : null,
+      summary: g.summary ?? null,
+      genres: (g.genres ?? []).map((x: any) => x.name),
+      developer: companies.find((c: any) => c.developer)?.company?.name ?? null,
+      publisher: companies.find((c: any) => c.publisher)?.company?.name ?? null,
+      aggregatedRating: g.aggregated_rating ?? null,
+    });
+  }
+  return map;
+}
+
 // Bounds a slow/hung IGDB call so a page renders an error notice instead
 // of hanging until the reverse proxy times out.
 function withTimeout<T>(work: Promise<T>, ms: number, label: string): Promise<T> {

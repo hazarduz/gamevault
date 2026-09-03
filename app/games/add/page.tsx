@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import Image from "next/image";
 import { PLATFORM_OPTIONS, pickPreferredPlatform } from "@/lib/platforms";
 import { PLAY_STATUS_OPTIONS } from "@/lib/play-status";
@@ -120,7 +121,12 @@ export default function AddGamePage() {
 
   return (
     <div className="mx-auto max-w-2xl">
-      <h1 className="font-display text-2xl font-bold text-parchment">Add a game</h1>
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <h1 className="font-display text-2xl font-bold text-parchment">Add a game</h1>
+        <Link href="/games/import" className="text-xs text-amber hover:underline">
+          Import from photos →
+        </Link>
+      </div>
       <p className="mt-1 text-sm text-mute">
         Search IGDB to auto-fill cover art and details, or skip straight to
         the form and enter everything yourself.
