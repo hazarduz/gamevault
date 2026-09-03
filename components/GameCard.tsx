@@ -1,3 +1,5 @@
+"use client";
+
 import Link from "next/link";
 import Image from "next/image";
 import { pickScoreBand, type ScoreBand } from "@/lib/score-badge";
@@ -24,6 +26,11 @@ interface GameCardProps {
   dimPlayedPreviously?: boolean;
   dimStrength?: number;
   format?: string;
+  // Multi-select (home page)
+  selectable?: boolean;
+  selected?: boolean;
+  selectionActive?: boolean; // any card selected — card click toggles instead of navigating
+  onToggleSelect?: (shiftKey: boolean) => void;
   // Wishlist view
   wishlist?: boolean;
   releaseDate?: string | null;
@@ -46,6 +53,10 @@ export default function GameCard({
   dimPlayedPreviously = false,
   dimStrength = 70,
   format = "Physical",
+  selectable = false,
+  selected = false,
+  selectionActive = false,
+  onToggleSelect,
   wishlist = false,
   releaseDate = null,
 }: GameCardProps) {
@@ -69,7 +80,15 @@ export default function GameCard({
   return (
     <Link
       href={`/games/${id}`}
-      className="group flex flex-col overflow-hidden rounded-card border border-ink-line bg-ink-soft transition hover:border-mute"
+      onClick={(e) => {
+        if (selectable && selectionActive) {
+          e.preventDefault();
+          onToggleSelect?.(e.shiftKey);
+        }
+      }}
+      className={`group flex flex-col overflow-hidden rounded-card border bg-ink-soft transition hover:border-mute ${
+        selectable ? "select-none" : ""
+      } ${selected ? "border-amber ring-2 ring-amber" : "border-ink-line"}`}
     >
       <div className="relative aspect-[3/4] w-full bg-ink-softer">
         {coverUrl ? (
@@ -93,9 +112,48 @@ export default function GameCard({
           />
         )}
 
-        <div className="absolute left-2 top-2">
+        <div
+          className={`absolute left-2 top-2 transition-opacity ${
+            selectable && (selected || selectionActive)
+              ? "opacity-0"
+              : selectable
+              ? "group-hover:opacity-0"
+              : ""
+          }`}
+        >
           <PlatformIcon platform={platform} />
         </div>
+
+        {selectable && (
+          <span
+            role="checkbox"
+            aria-checked={selected}
+            aria-label={selected ? "Deselect game" : "Select game"}
+            tabIndex={0}
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              onToggleSelect?.(e.shiftKey);
+            }}
+            onKeyDown={(e) => {
+              if (e.key === " " || e.key === "Enter") {
+                e.preventDefault();
+                onToggleSelect?.(e.shiftKey);
+              }
+            }}
+            className={`absolute left-2 top-2 z-10 flex h-6 w-6 cursor-pointer items-center justify-center rounded-md text-xs font-bold ring-1 transition ${
+              selected
+                ? "bg-amber text-ink ring-amber"
+                : "bg-black/50 text-transparent ring-white/40 hover:text-white/80"
+            } ${
+              selected || selectionActive
+                ? "opacity-100"
+                : "opacity-0 group-hover:opacity-100"
+            }`}
+          >
+            ✓
+          </span>
+        )}
 
         {wishlist && (
           <span className="absolute right-2 top-2 rounded-full bg-amber/90 px-2 py-0.5 font-display text-[10px] font-bold uppercase tracking-wide text-ink">

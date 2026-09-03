@@ -6,7 +6,7 @@ import { getUserPrefs } from "@/lib/prefs";
 import { parseScoreBands } from "@/lib/score-badge";
 import { parseStatusColors, isPlayStatus } from "@/lib/play-status";
 import { sortGames, DEFAULT_SORT, isSortValue, type SortValue } from "@/lib/sort-games";
-import GameCard from "@/components/GameCard";
+import CollectionGrid from "@/components/CollectionGrid";
 import SortSelect from "@/components/SortSelect";
 import FilterBar from "@/components/FilterBar";
 import Link from "next/link";
@@ -131,29 +131,28 @@ export default async function DashboardPage({
           )}
         </div>
       ) : (
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:[grid-template-columns:repeat(auto-fill,minmax(200px,1fr))]">
-          {games.map((g) => (
-            <GameCard
-              key={g.id}
-              id={g.id}
-              title={g.title}
-              platform={g.platform}
-              coverUrl={g.coverUrl}
-              valueCibGbp={g.valueCibGbp ? Number(g.valueCibGbp) : null}
-              valueLooseGbp={g.valueLooseGbp ? Number(g.valueLooseGbp) : null}
-              score={g.aggregatedRating}
-              scoreBadgeEnabled={prefs.scoreBadgeEnabled}
-              scoreBands={scoreBands}
-              playStatus={g.playStatus}
-              statusBadgeEnabled={prefs.statusBadgeEnabled}
-              statusColors={statusColors}
-              dimCompleted={prefs.dimCompleted}
-              dimPlayedPreviously={prefs.dimPlayedPreviously}
-              dimStrength={prefs.dimStrength}
-              format={g.format}
-            />
-          ))}
-        </div>
+        <CollectionGrid
+          games={games.map((g) => ({
+            id: g.id,
+            title: g.title,
+            platform: g.platform,
+            coverUrl: g.coverUrl,
+            valueCibGbp: g.valueCibGbp ? Number(g.valueCibGbp) : null,
+            valueLooseGbp: g.valueLooseGbp ? Number(g.valueLooseGbp) : null,
+            score: g.aggregatedRating,
+            playStatus: g.playStatus,
+            format: g.format,
+          }))}
+          prefs={{
+            scoreBadgeEnabled: prefs.scoreBadgeEnabled,
+            scoreBands,
+            statusBadgeEnabled: prefs.statusBadgeEnabled,
+            statusColors,
+            dimCompleted: prefs.dimCompleted,
+            dimPlayedPreviously: prefs.dimPlayedPreviously,
+            dimStrength: prefs.dimStrength,
+          }}
+        />
       )}
     </div>
   );
