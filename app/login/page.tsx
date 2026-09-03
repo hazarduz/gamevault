@@ -1,11 +1,18 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { Suspense } from "react";
 
+// Only allow same-origin relative paths as a post-login destination, so
+// a crafted ?next=https://evil.example can't turn this into an open
+// redirect.
+function safeNext(raw: string | null): string {
+  if (raw && raw.startsWith("/") && !raw.startsWith("//")) return raw;
+  return "/";
+}
+
 function LoginForm() {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const [checking, setChecking] = useState(true);
   const [isFirstRun, setIsFirstRun] = useState(false);
@@ -42,8 +49,11 @@ function LoginForm() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Something went wrong.");
 
-      router.push(searchParams.get("next") || "/");
-      router.refresh();
+      // Hard navigation, not router.push(): it guarantees the next
+      // request is a fresh top-level load that carries the just-set
+      // session cookie. The client-router version raced the Set-Cookie
+      // and would sometimes land back on /login until a manual refresh.
+      window.location.assign(safeNext(searchParams.get("next")));
     } catch (e: any) {
       setError(e.message);
       setSubmitting(false);

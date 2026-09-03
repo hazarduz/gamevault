@@ -22,10 +22,10 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "title is required" }, { status: 400 });
     }
 
-    // Imported here rather than at module scope: if lib/hltb (or the
-    // "howlongtobeat" package it pulls in) throws while loading, that
-    // becomes a catchable error instead of a module-eval crash that
-    // takes the whole route down with an HTML 500.
+    // Imported here rather than at module scope so that any future
+    // load-time failure in lib/hltb becomes a catchable error rather
+    // than a module-eval crash that takes the whole route down with an
+    // HTML 500 (which is what the old "howlongtobeat" package did).
     const { searchHltb } = await import("@/lib/hltb");
 
     const results = await searchHltb(title);
