@@ -19,7 +19,6 @@ async function loadPsnApi() {
   for (const fn of [
     "exchangeNpssoForAccessCode",
     "exchangeAccessCodeForAuthTokens",
-    "makeUniversalSearch",
     "getUserTitles",
   ]) {
     if (typeof mod[fn] !== "function") {
@@ -29,11 +28,19 @@ async function loadPsnApi() {
   return mod as {
     exchangeNpssoForAccessCode: (npsso: string) => Promise<string>;
     exchangeAccessCodeForAuthTokens: (code: string) => Promise<{ accessToken: string }>;
-    makeUniversalSearch: (auth: { accessToken: string }, term: string, domain: string) => Promise<any>;
     getUserTitles: (
       auth: { accessToken: string },
       accountId: string,
       options?: { limit?: number; offset?: number }
+    ) => Promise<any>;
+    getProfileFromUserName?: (
+      auth: { accessToken: string },
+      userName: string
+    ) => Promise<any>;
+    makeUniversalSearch?: (
+      auth: { accessToken: string },
+      term: string,
+      domain: string
     ) => Promise<any>;
   };
 }
@@ -77,22 +84,40 @@ async function resolveAccountId(
   accessToken: string,
   onlineId: string
 ): Promise<string> {
-  if (!onlineId.trim()) return "me";
+  const name = onlineId.trim();
+  if (!name) return "me";
 
-  const { makeUniversalSearch } = await loadPsnApi();
-  const search: any = await makeUniversalSearch(
-    { accessToken },
-    onlineId.trim(),
-    "SocialAllAccounts"
-  );
-  const accountId =
-    search?.domainResponses?.[0]?.results?.[0]?.socialMetadata?.accountId;
-  if (!accountId) {
-    throw new Error(
-      `Couldn't find PSN profile "${onlineId}" — check the spelling, and that its trophy list is set to public.`
-    );
+  const api = await loadPsnApi();
+  const auth = { accessToken };
+
+  // Canonical username -> accountId.
+  if (api.getProfileFromUserName) {
+    try {
+      const r: any = await api.getProfileFromUserName(auth, name);
+      const id = r?.profile?.accountId ?? r?.accountId;
+      if (id) return String(id);
+    } catch {
+      /* fall through */
+    }
   }
-  return String(accountId);
+
+  // Fuzzy search fallback.
+  if (api.makeUniversalSearch) {
+    try {
+      const s: any = await api.makeUniversalSearch(auth, name, "SocialAllAccounts");
+      const first = s?.domainResponses?.[0]?.results?.[0];
+      const id = first?.socialMetadata?.accountId ?? first?.accountId;
+      if (id) return String(id);
+    } catch {
+      /* fall through */
+    }
+  }
+
+  // Couldn't resolve the name — assume it's the token owner's own
+  // account (the common case). If it was actually a friend's ID, the
+  // wrong platinums show up in the review table and simply aren't
+  // applied.
+  return "me";
 }
 
 // Caps the whole PSN round-trip so a hung request from psn-api / Sony
