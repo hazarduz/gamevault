@@ -13,8 +13,6 @@ const SETTINGS_FIELDS = [
   "hltbEnabled",
   "priceChartingEnabled",
   "currencyApiUrl",
-  "barcodeLookupEnabled",
-  "barcodeApiUrl",
 ] as const;
 
 // GET /api/admin/backup — a full dump of the whole instance: every

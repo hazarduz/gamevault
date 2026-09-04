@@ -11,18 +11,6 @@ const nextConfig = {
     // its dual CJS/ESM exports map.
     serverComponentsExternalPackages: ["psn-api"],
   },
-  webpack: (config) => {
-    // tesseract.js (browser build, dynamically imported on the import
-    // page) references some Node built-ins it doesn't use in the browser.
-    config.resolve.fallback = {
-      ...config.resolve.fallback,
-      fs: false,
-      path: false,
-      crypto: false,
-      stream: false,
-    };
-    return config;
-  },
 };
 
 module.exports = nextConfig;

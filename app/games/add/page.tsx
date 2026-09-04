@@ -10,7 +10,6 @@ import {
   isDigitalOnlyPlatform,
 } from "@/lib/platforms";
 import { PLAY_STATUS_OPTIONS } from "@/lib/play-status";
-import BarcodeScanner from "@/components/BarcodeScanner";
 
 interface IgdbHit {
   igdbId: number;
@@ -57,23 +56,6 @@ export default function AddGamePage() {
     } catch (e: any) {
       setSearchError(e.message);
     } finally {
-      setSearching(false);
-    }
-  }
-
-  async function handleScannedCode(code: string) {
-    setSearching(true);
-    setSearchError(null);
-    setResults([]);
-    try {
-      const res = await fetch(`/api/barcode?code=${encodeURIComponent(code)}`);
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "Barcode lookup failed");
-      const term: string = data.cleanedTitle || data.productName;
-      setQuery(term);
-      await runSearch(term);
-    } catch (e: any) {
-      setSearchError(`${e.message} (barcode ${code})`);
       setSearching(false);
     }
   }
@@ -134,14 +116,9 @@ export default function AddGamePage() {
     <div className="mx-auto max-w-2xl">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <h1 className="font-display text-2xl font-bold text-parchment">Add a game</h1>
-        <div className="flex flex-wrap gap-3">
-          <Link href="/games/import" className="text-xs text-amber hover:underline">
-            Import from photos →
-          </Link>
-          <Link href="/settings" className="text-xs text-amber hover:underline">
-            Import from Steam →
-          </Link>
-        </div>
+        <Link href="/settings" className="text-xs text-amber hover:underline">
+          Import from Steam →
+        </Link>
       </div>
       <p className="mt-1 text-sm text-mute">
         Search IGDB to auto-fill cover art and details, or skip straight to
@@ -164,12 +141,7 @@ export default function AddGamePage() {
         >
           {searching ? "Searching…" : "Search IGDB"}
         </button>
-        <BarcodeScanner disabled={searching} onScan={handleScannedCode} />
       </div>
-      <p className="mt-1 text-xs text-mute">
-        On a phone you can tap <span className="text-parchment">Scan barcode</span>{" "}
-        to photograph the box and look the title up automatically.
-      </p>
 
       {searchError && (
         <p className="mt-2 text-sm text-red-400">{searchError}</p>

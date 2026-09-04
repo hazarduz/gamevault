@@ -26,8 +26,6 @@ export async function updateSettings(data: {
   currencyApiUrl?: string | null;
   scoreBadgeEnabled?: boolean;
   scoreBadgeBands?: string | null;
-  barcodeLookupEnabled?: boolean;
-  barcodeApiUrl?: string | null;
   statusBadgeEnabled?: boolean;
   statusColors?: string | null;
   dimCompleted?: boolean;

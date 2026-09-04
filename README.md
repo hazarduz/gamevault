@@ -44,9 +44,6 @@ account has its own completely separate collection.
   "similar games" across your whole collection, ranked by recurrence. Indie
   Discover requires IGDB's Indie genre and drops the big publishers. A **Rotate**
   button cycles fresh batches.
-- **Add by barcode** — on a phone, photograph a game's barcode; the browser
-  decodes it on-device and looks the title up (UPCitemdb) to seed the IGDB
-  search.
 - **Users & invites** — the admin creates a username and gets a one-time invite
   link; the new person sets their own password and lands in an empty collection.
 
@@ -99,15 +96,14 @@ account has its own completely separate collection.
   colours, "dim completed" toggle, PlayStation Online ID + NPSSO token, and your
   own username/password.
 - **Site settings** (admin only): enable/disable IGDB, HowLongToBeat,
-  PriceCharting, Steam import, the Currently Free page and the barcode lookup;
-  the Twitch/IGDB credentials; the Steam Web API key; the Currently Free refresh
-  interval; the currency conversion API URL; the barcode API URL. These are
-  instance-wide and stored in the database (taking priority over `.env`).
+  PriceCharting, Steam import and the Currently Free page; the Twitch/IGDB
+  credentials; the Steam Web API key; the Currently Free refresh interval; the
+  currency conversion API URL. These are instance-wide and stored in the
+  database (taking priority over `.env`).
 
 ## How the data sources work
 
-None of PriceCharting, HowLongToBeat, PSN or the barcode lookup offer a free
-public API, so:
+None of PriceCharting, HowLongToBeat or PSN offer a free public API, so:
 
 - **`lib/pricecharting.ts`** parses PriceCharting's product pages and converts
   USD → GBP via a keyless FX endpoint (default `open.er-api.com`).
@@ -115,8 +111,6 @@ public API, so:
   scraped from the site's frontend first).
 - **`lib/psn.ts`** uses the `psn-api` package against Sony's real endpoints,
   authenticated with a per-user NPSSO token (lasts ~2 months, then re-paste it).
-- **`lib/barcode.ts`** hits UPCitemdb's free tier for a product name, then feeds
-  it to IGDB search.
 
 Steam is the exception — **`lib/steam.ts`** uses the official Steam Web API
 (`GetOwnedGames` / `ResolveVanityURL`). It needs a free key from
@@ -152,7 +146,7 @@ app/
   discover/ · indie/         Recommendations from IGDB similar_games
   settings/page.tsx          Personal prefs + (admin) site config & users
   login/ · invite/[token]/   Login / first-run / accept-invite
-  games/add/ · games/[id]/   Add form (+ barcode) / detail / edit / enrich
+  games/add/ · games/[id]/   Add form / detail / edit / enrich
   icon.svg                   The crest — served as the favicon
   api/games/                 Per-user CRUD (ownership-checked)
   api/igdb/search/           IGDB search + detail
@@ -167,7 +161,7 @@ app/
 lib/
   igdb.ts                    IGDB client — search, detail, upcoming, similar
   pricecharting.ts hltb.ts   Value & completion-time lookups
-  psn.ts steam.ts barcode.ts PSN trophies / Steam library / barcode -> name
+  psn.ts steam.ts            PSN trophies / Steam library
   free-games.ts gamerpower.ts epic-free.ts   Currently Free feed + its sources
   score-badge.ts play-status.ts media.ts   Badge / status / media helpers
   tenant.ts prefs.ts         Multi-user bootstrap + per-user preferences

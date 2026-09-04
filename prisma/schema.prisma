@@ -151,11 +151,6 @@ model Settings {
   priceChartingEnabled Boolean @default(true)
   currencyApiUrl       String?
 
-  // Barcode -> product-name lookup on the Add a game screen. Null URL
-  // means the built-in UPCitemdb trial endpoint (see lib/barcode.ts).
-  barcodeLookupEnabled Boolean @default(true)
-  barcodeApiUrl        String?
-
   // --- DEPRECATED: moved to UserPrefs ---
   psnEnabled  Boolean @default(false)
   psnOnlineId String?

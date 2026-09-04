@@ -23,8 +23,6 @@ function serialize(
     hasSteamApiKey: !!(settings.steamApiKey || process.env.STEAM_API_KEY),
     priceChartingEnabled: settings.priceChartingEnabled,
     currencyApiUrl: settings.currencyApiUrl ?? "",
-    barcodeLookupEnabled: settings.barcodeLookupEnabled,
-    barcodeApiUrl: settings.barcodeApiUrl ?? "",
   };
 }
 
@@ -73,11 +71,6 @@ export async function PATCH(req: NextRequest) {
   }
   if (typeof body.currencyApiUrl === "string")
     data.currencyApiUrl = body.currencyApiUrl || null;
-
-  if (typeof body.barcodeLookupEnabled === "boolean")
-    data.barcodeLookupEnabled = body.barcodeLookupEnabled;
-  if (typeof body.barcodeApiUrl === "string")
-    data.barcodeApiUrl = body.barcodeApiUrl || null;
 
   const updated = await updateSettings(data);
   return NextResponse.json(serialize(updated, true));

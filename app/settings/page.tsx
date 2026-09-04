@@ -37,8 +37,6 @@ interface Instance {
   hasSteamApiKey: boolean;
   priceChartingEnabled: boolean;
   currencyApiUrl: string;
-  barcodeLookupEnabled: boolean;
-  barcodeApiUrl: string;
 }
 
 interface PsnScan {
@@ -782,35 +780,6 @@ export default function SettingsPage() {
               These apply to everyone on this GameVault.
             </p>
           </div>
-
-          {/* --- Barcode lookup --- */}
-          <section className="rounded-card border border-ink-line bg-ink-soft p-5">
-            <div className="flex items-center justify-between">
-              <h2 className="font-display text-lg font-bold text-parchment">Barcode lookup</h2>
-              <Toggle
-                checked={instance.barcodeLookupEnabled}
-                onChange={(v) => saveInstance({ barcodeLookupEnabled: v })}
-              />
-            </div>
-            <p className="mt-1 text-sm text-mute">
-              Powers the &ldquo;Scan barcode&rdquo; button on the Add a game
-              screen. Default is UPCitemdb&rsquo;s free tier.
-            </p>
-            <div className="mt-4">
-              <label className="label">
-                Barcode API URL{" "}
-                <span className="text-xs text-mute">
-                  (barcode appended, or use a {"{code}"} placeholder)
-                </span>
-              </label>
-              <input
-                className="field"
-                defaultValue={instance.barcodeApiUrl}
-                placeholder="https://api.upcitemdb.com/prod/trial/lookup?upc="
-                onBlur={(e) => saveInstance({ barcodeApiUrl: e.target.value })}
-              />
-            </div>
-          </section>
 
           {/* --- Currently free --- */}
           <section className="rounded-card border border-ink-line bg-ink-soft p-5">
