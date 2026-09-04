@@ -405,6 +405,14 @@ export interface ApplySyncResult {
 // time rather than diffed — earned status/dates always come straight
 // from PSN, so there's nothing worth preserving across a resync, and it
 // sidesteps id drift if Sony ever reorders a trophy list.
+//
+// Also re-linked to fix a bad match (Settings -> PlayStation trophies'
+// suggestions are fuzzy title matches and occasionally pick the wrong
+// game): if the *previous* link had wrongly earned a platinum, the fresh
+// sync's platinumEarned will now be false, so playStatus is corrected
+// back down. Only ever touches a "platinum" status this same sync
+// mechanism could have set — a status chosen by hand any other way is
+// left alone.
 export async function applyTrophySync(
   creds: PsnCredentials,
   gameId: string,
@@ -412,9 +420,19 @@ export async function applyTrophySync(
   npServiceName: "trophy" | "trophy2",
   titleName: string
 ): Promise<ApplySyncResult> {
-  const rows = await syncTitleTrophies(creds, npCommunicationId, npServiceName);
+  const [rows, game] = await Promise.all([
+    syncTitleTrophies(creds, npCommunicationId, npServiceName),
+    prisma.game.findUnique({ where: { id: gameId }, select: { playStatus: true } }),
+  ]);
   const platinumEarned = rows.some((r) => r.type === "platinum" && r.earned);
   const earnedCount = rows.filter((r) => r.earned).length;
+
+  let playStatus: string | undefined;
+  if (platinumEarned) {
+    playStatus = "platinum";
+  } else if (game?.playStatus === "platinum") {
+    playStatus = earnedCount > 0 ? "in_progress" : "unplayed";
+  }
 
   await prisma.$transaction([
     prisma.trophy.deleteMany({ where: { gameId } }),
@@ -440,7 +458,7 @@ export async function applyTrophySync(
         psnNpCommunicationId: npCommunicationId,
         psnNpServiceName: npServiceName,
         trophiesSyncedAt: new Date(),
-        ...(platinumEarned ? { playStatus: "platinum" } : {}),
+        ...(playStatus ? { playStatus } : {}),
       },
     }),
   ]);
@@ -452,4 +470,22 @@ export async function applyTrophySync(
     earnedCount,
     platinumEarned,
   };
+}
+
+// Clears a game's PSN link and deletes its trophies — used when a re-
+// match search doesn't turn up the right title and the user just wants
+// to unlink rather than pick a wrong one. Doesn't touch playStatus: with
+// no new match to compare against there's nothing reliable to set it to.
+export async function unlinkTrophies(gameId: string): Promise<void> {
+  await prisma.$transaction([
+    prisma.trophy.deleteMany({ where: { gameId } }),
+    prisma.game.update({
+      where: { id: gameId },
+      data: {
+        psnNpCommunicationId: null,
+        psnNpServiceName: null,
+        trophiesSyncedAt: null,
+      },
+    }),
+  ]);
 }

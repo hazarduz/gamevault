@@ -86,6 +86,15 @@ function looksLikePlayStation(platform: string): boolean {
   return /playstation|ps ?[1-5]|vita|psp/i.test(platform);
 }
 
+interface PsnSearchResult {
+  npCommunicationId: string;
+  npServiceName: "trophy" | "trophy2";
+  name: string;
+  platform: string;
+  defined: { bronze: number; silver: number; gold: number; platinum: number };
+  earned: { bronze: number; silver: number; gold: number; platinum: number };
+}
+
 const TROPHY_TYPE_COLOR: Record<Trophy["type"], string> = {
   bronze: "bg-orange-400",
   silver: "bg-slate-300",
@@ -109,6 +118,11 @@ export default function GameDetailPage({ params }: { params: { id: string } }) {
   const [igdbLoading, setIgdbLoading] = useState(false);
   const [trophyLoading, setTrophyLoading] = useState(false);
   const [achievementLoading, setAchievementLoading] = useState(false);
+  const [psnSearchOpen, setPsnSearchOpen] = useState(false);
+  const [psnQuery, setPsnQuery] = useState("");
+  const [psnSearching, setPsnSearching] = useState(false);
+  const [psnResults, setPsnResults] = useState<PsnSearchResult[] | null>(null);
+  const [psnLinkingId, setPsnLinkingId] = useState<string | null>(null);
   const [statusMsg, setStatusMsg] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -117,6 +131,11 @@ export default function GameDetailPage({ params }: { params: { id: string } }) {
       .then((r) => r.json())
       .then((data) => setGame(data && !data.error ? data : null))
       .finally(() => setLoading(false));
+    // Clicking to a different game reuses this component — drop any
+    // re-match search state from the previous one.
+    setPsnSearchOpen(false);
+    setPsnResults(null);
+    setPsnQuery("");
   }, [params.id]);
 
   async function patch(fields: Partial<Game>) {
@@ -215,6 +234,72 @@ export default function GameDetailPage({ params }: { params: { id: string } }) {
         `Synced ${data.trophyCount} trophies — ${data.earnedCount} earned` +
           (data.platinumEarned ? ", including the platinum." : ".")
       );
+    } catch (e: any) {
+      setStatusMsg(e.message);
+    } finally {
+      setTrophyLoading(false);
+    }
+  }
+
+  async function searchPsn() {
+    if (!psnQuery.trim()) return;
+    setPsnSearching(true);
+    setPsnResults(null);
+    setStatusMsg(null);
+    try {
+      const res = await fetch(`/api/psn/search-titles?q=${encodeURIComponent(psnQuery)}`);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Search failed");
+      setPsnResults(data.matches);
+    } catch (e: any) {
+      setStatusMsg(e.message);
+    } finally {
+      setPsnSearching(false);
+    }
+  }
+
+  async function linkPsn(candidate: PsnSearchResult) {
+    if (!game) return;
+    setPsnLinkingId(candidate.npCommunicationId);
+    setStatusMsg(null);
+    try {
+      const res = await fetch(`/api/games/${game.id}/relink-psn`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          npCommunicationId: candidate.npCommunicationId,
+          npServiceName: candidate.npServiceName,
+          psnName: candidate.name,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Link failed");
+      const refreshed = await fetch(`/api/games/${game.id}`).then((r) => r.json());
+      setGame(refreshed);
+      setPsnSearchOpen(false);
+      setPsnResults(null);
+      setPsnQuery("");
+      setStatusMsg(
+        `Linked "${candidate.name}" — ${data.trophyCount} trophies, ${data.earnedCount} earned.`
+      );
+    } catch (e: any) {
+      setStatusMsg(e.message);
+    } finally {
+      setPsnLinkingId(null);
+    }
+  }
+
+  async function unlinkPsn() {
+    if (!game) return;
+    if (!confirm("Unlink this game from PSN? Its trophy list will be cleared.")) return;
+    setTrophyLoading(true);
+    setStatusMsg(null);
+    try {
+      const res = await fetch(`/api/games/${game.id}/relink-psn`, { method: "DELETE" });
+      if (!res.ok) throw new Error("Unlink failed");
+      const refreshed = await fetch(`/api/games/${game.id}`).then((r) => r.json());
+      setGame(refreshed);
+      setStatusMsg("Unlinked from PSN.");
     } catch (e: any) {
       setStatusMsg(e.message);
     } finally {
@@ -459,25 +544,105 @@ export default function GameDetailPage({ params }: { params: { id: string } }) {
           <section className="mt-8">
             <div className="flex items-center justify-between">
               <h2 className="font-display text-lg font-bold text-parchment">Trophies</h2>
-              {game.psnNpCommunicationId && (
+              <div className="flex items-center gap-2">
+                {game.psnNpCommunicationId && (
+                  <button
+                    onClick={syncTrophies}
+                    disabled={trophyLoading}
+                    className="btn-secondary text-xs"
+                  >
+                    {trophyLoading ? "Syncing…" : "Refresh trophies"}
+                  </button>
+                )}
                 <button
-                  onClick={syncTrophies}
-                  disabled={trophyLoading}
+                  type="button"
+                  onClick={() => {
+                    setPsnSearchOpen((v) => !v);
+                    if (!psnSearchOpen && !psnQuery) setPsnQuery(game.title);
+                  }}
                   className="btn-secondary text-xs"
                 >
-                  {trophyLoading ? "Syncing…" : "Refresh trophies"}
+                  {game.psnNpCommunicationId ? "Re-match" : "Find on PSN"}
                 </button>
-              )}
+              </div>
             </div>
 
+            {psnSearchOpen && (
+              <div className="mt-3 rounded-md border border-ink-line bg-ink p-3">
+                <p className="mb-2 text-xs text-mute">
+                  Search your PSN library and pick the right title —
+                  useful when a fuzzy match picked the wrong game.
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  <input
+                    className="field flex-1"
+                    placeholder="Search your PSN library…"
+                    value={psnQuery}
+                    onChange={(e) => setPsnQuery(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && searchPsn()}
+                  />
+                  <button
+                    type="button"
+                    onClick={searchPsn}
+                    disabled={psnSearching}
+                    className="btn-secondary whitespace-nowrap text-xs"
+                  >
+                    {psnSearching ? "Searching…" : "Search"}
+                  </button>
+                </div>
+
+                {psnResults && (
+                  psnResults.length === 0 ? (
+                    <p className="mt-2 text-xs text-mute">
+                      No matches on your PSN account for that.
+                    </p>
+                  ) : (
+                    <div className="mt-2 space-y-1">
+                      {psnResults.map((r) => {
+                        const earned = r.earned.bronze + r.earned.silver + r.earned.gold + r.earned.platinum;
+                        const defined = r.defined.bronze + r.defined.silver + r.defined.gold + r.defined.platinum;
+                        const busy = psnLinkingId !== null;
+                        return (
+                          <div
+                            key={`${r.npCommunicationId}-${r.npServiceName}`}
+                            className="flex items-center justify-between gap-2 rounded px-2 py-1.5 hover:bg-ink-soft"
+                          >
+                            <span className="min-w-0 truncate text-xs text-parchment">
+                              {r.name}
+                              <span className="text-mute">
+                                {" "}
+                                · {r.platform} · {earned}/{defined} earned
+                              </span>
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => linkPsn(r)}
+                              disabled={busy}
+                              className="btn-primary flex-shrink-0 px-2 py-1 text-[11px]"
+                            >
+                              {psnLinkingId === r.npCommunicationId ? "Linking…" : "Link"}
+                            </button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )
+                )}
+
+                {game.psnNpCommunicationId && (
+                  <button
+                    type="button"
+                    onClick={unlinkPsn}
+                    className="mt-3 text-xs text-red-400 hover:underline"
+                  >
+                    Unlink from PSN
+                  </button>
+                )}
+              </div>
+            )}
+
             {!game.psnNpCommunicationId ? (
-              <p className="mt-2 text-sm text-mute">
-                Not linked to a PSN title yet. Link it from{" "}
-                <Link href="/settings" className="text-amber underline">
-                  Settings → PlayStation trophies
-                </Link>
-                .
-              </p>
+              <p className="mt-2 text-sm text-mute">Not linked to a PSN title yet.</p>
             ) : (
               <>
                 <p className="mt-1 text-xs text-mute">

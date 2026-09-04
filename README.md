@@ -29,6 +29,9 @@ account has its own completely separate collection.
   pulls its full trophy list onto the game's page — every bronze/silver/gold/
   platinum, which you've earned and when — and earning the platinum marks the
   game **Platinum Achieved**. Re-sync one game, or all linked games at once.
+  A wrong auto-match (fuzzy title matching occasionally picks the wrong PSN
+  title) is fixed from the game's own page: "Re-match" searches your PSN
+  library and re-links to whichever title you pick, or "Unlink" clears it.
 - **Steam library import** — add your Steam Web API key once (admin), then each
   user pastes their SteamID in Settings and pulls their owned games in, matched
   against IGDB for art and metadata. Games come in as Digital / PC, and a re-scan
@@ -174,6 +177,8 @@ app/
   api/enrich/price · hltb/   PriceCharting / HowLongToBeat
   api/psn/scan · apply/      PSN title discovery / link + trophy sync
   api/psn/sync-all/          Re-sync every already-linked PSN game
+  api/psn/search-titles/     Search your PSN library, for re-matching
+  api/games/[id]/relink-psn/ Re-match or unlink a game's PSN title
   api/games/[id]/sync-trophies/  Re-sync one linked game's trophies
   api/steam/achievements/    Scan / apply / sync-all for Steam achievements
   api/games/[id]/sync-achievements/  Re-sync one linked game's achievements
