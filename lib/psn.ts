@@ -1,11 +1,13 @@
-// Reads PlayStation trophy progress via the `psn-api` package (Sony's
-// real endpoints — no scraping) and works out which titles have an
-// earned platinum. Auth is a per-account NPSSO token pasted into
-// Settings; it lasts ~2 months, then Sony rejects it and the user grabs
-// a fresh one.
+// Reads PlayStation trophy data via the `psn-api` package (Sony's real
+// endpoints — no scraping). Auth is a per-account NPSSO token pasted into
+// Settings; it lasts ~2 months, then Sony rejects it and the user grabs a
+// fresh one.
 //
-// This module only READS. Writing "platinum" to games happens in
-// app/api/psn/apply after the user confirms the title -> game mapping.
+// This module only READS. Linking a game to a PSN title and writing its
+// trophies happens in lib/psn.ts's applyTrophySync(), called from
+// app/api/psn/apply, app/api/psn/sync-all and
+// app/api/games/[id]/sync-trophies after the caller has decided which
+// game a PSN title belongs to.
 //
 // psn-api is loaded with a dynamic import inside the functions rather
 // than a top-level import: that keeps it out of the Next build graph, so
@@ -13,12 +15,16 @@
 // runtime error (a 502 with a real message) instead of failing the
 // whole production build.
 
+import { prisma } from "@/lib/prisma";
+
 async function loadPsnApi() {
   const mod: any = await import("psn-api");
   for (const fn of [
     "exchangeNpssoForAccessCode",
     "exchangeAccessCodeForAuthTokens",
     "getUserTitles",
+    "getTitleTrophies",
+    "getUserTrophiesEarnedForTitle",
   ]) {
     if (typeof mod[fn] !== "function") {
       throw new Error(`psn-api is missing ${fn}() — the package version may have changed.`);
@@ -32,6 +38,19 @@ async function loadPsnApi() {
       accountId: string,
       options?: { limit?: number; offset?: number }
     ) => Promise<any>;
+    getTitleTrophies: (
+      auth: { accessToken: string },
+      npCommunicationId: string,
+      trophyGroupId: string,
+      options?: { npServiceName?: string }
+    ) => Promise<any>;
+    getUserTrophiesEarnedForTitle: (
+      auth: { accessToken: string },
+      accountId: string,
+      npCommunicationId: string,
+      trophyGroupId: string,
+      options?: { npServiceName?: string }
+    ) => Promise<any>;
     getProfileFromUserName?: (
       auth: { accessToken: string },
       userName: string
@@ -44,21 +63,16 @@ async function loadPsnApi() {
   };
 }
 
-export interface PsnPlatinumTitle {
-  name: string;
-  platform: string;
+export interface PsnCredentials {
+  psnEnabled: boolean;
+  psnOnlineId: string | null;
+  psnNpsso: string | null;
 }
 
 export interface MatchCandidate {
   id: string;
   title: string;
   platform: string;
-}
-
-export interface PsnCredentials {
-  psnEnabled: boolean;
-  psnOnlineId: string | null;
-  psnNpsso: string | null;
 }
 
 async function authorize(
@@ -121,12 +135,11 @@ async function resolveAccountId(
 
   // Couldn't resolve the name — assume it's the token owner's own
   // account (the common case). If it was actually a friend's ID, the
-  // wrong platinums show up in the review table and simply aren't
-  // applied.
+  // wrong titles show up in the review table and simply aren't applied.
   return "me";
 }
 
-// Caps the whole PSN round-trip so a hung request from psn-api / Sony
+// Caps a single PSN round-trip so a hung request from psn-api / Sony
 // fails fast with a readable error instead of the reverse proxy timing
 // out and Cloudflare showing a bare "Bad gateway".
 function withTimeout<T>(work: Promise<T>, ms: number, label: string): Promise<T> {
@@ -138,18 +151,52 @@ function withTimeout<T>(work: Promise<T>, ms: number, label: string): Promise<T>
   ]);
 }
 
-export function getEarnedPlatinumTitles(
-  creds: PsnCredentials
-): Promise<PsnPlatinumTitle[]> {
-  return withTimeout(scanPlatinums(creds), 45_000, "PlayStation trophy scan");
+// --- Discovery: list the account's owned PSN titles ------------------
+
+export interface TrophyCounts {
+  bronze: number;
+  silver: number;
+  gold: number;
+  platinum: number;
 }
 
-async function scanPlatinums(creds: PsnCredentials): Promise<PsnPlatinumTitle[]> {
+export interface PsnTitleSummary {
+  npCommunicationId: string;
+  npServiceName: "trophy" | "trophy2";
+  name: string;
+  platform: string; // raw trophyTitlePlatform, e.g. "PS5" or "PS4,PS5"
+  iconUrl: string | null;
+  defined: TrophyCounts;
+  earned: TrophyCounts;
+}
+
+// PSN's own split: PS5 titles need npServiceName "trophy2"; PS4/PS3/Vita
+// titles need "trophy". getUserTitles() actually returns this per title
+// (preferred — see below); this is only a fallback for when it doesn't.
+// If it's still wrong for a given title, syncTitleTrophies() retries with
+// the other value rather than failing outright.
+function deriveNpServiceName(platformLabel: string): "trophy" | "trophy2" {
+  return /ps5/i.test(platformLabel) ? "trophy2" : "trophy";
+}
+
+function readNpServiceName(t: any, platformLabel: string): "trophy" | "trophy2" {
+  return t?.npServiceName === "trophy" || t?.npServiceName === "trophy2"
+    ? t.npServiceName
+    : deriveNpServiceName(platformLabel);
+}
+
+export function getOwnedPsnTitles(
+  creds: PsnCredentials
+): Promise<PsnTitleSummary[]> {
+  return withTimeout(listOwnedTitles(creds), 45_000, "PlayStation library scan");
+}
+
+async function listOwnedTitles(creds: PsnCredentials): Promise<PsnTitleSummary[]> {
   const { accessToken, onlineId } = await authorize(creds);
   const accountId = await resolveAccountId(accessToken, onlineId);
   const { getUserTitles } = await loadPsnApi();
 
-  const platinums: PsnPlatinumTitle[] = [];
+  const titles: PsnTitleSummary[] = [];
   const limit = 200;
   let offset = 0;
 
@@ -159,26 +206,44 @@ async function scanPlatinums(creds: PsnCredentials): Promise<PsnPlatinumTitle[]>
       limit,
       offset,
     });
-    const titles: any[] = page?.trophyTitles ?? [];
+    const pageTitles: any[] = page?.trophyTitles ?? [];
 
-    for (const t of titles) {
-      const defined = Number(t?.definedTrophies?.platinum ?? 0);
-      const earned = Number(t?.earnedTrophies?.platinum ?? 0);
-      if (defined > 0 && earned > 0) {
-        platinums.push({
-          name: String(t?.trophyTitleName ?? "").trim(),
-          platform: String(t?.trophyTitlePlatform ?? "").trim(),
-        });
-      }
+    for (const t of pageTitles) {
+      const name = String(t?.trophyTitleName ?? "").trim();
+      const npCommunicationId = String(t?.npCommunicationId ?? "").trim();
+      if (!name || !npCommunicationId) continue;
+
+      const platform = String(t?.trophyTitlePlatform ?? "").trim();
+      titles.push({
+        npCommunicationId,
+        npServiceName: readNpServiceName(t, platform),
+        name,
+        platform,
+        iconUrl: t?.trophyTitleIconUrl ?? null,
+        defined: {
+          bronze: Number(t?.definedTrophies?.bronze ?? 0),
+          silver: Number(t?.definedTrophies?.silver ?? 0),
+          gold: Number(t?.definedTrophies?.gold ?? 0),
+          platinum: Number(t?.definedTrophies?.platinum ?? 0),
+        },
+        earned: {
+          bronze: Number(t?.earnedTrophies?.bronze ?? 0),
+          silver: Number(t?.earnedTrophies?.silver ?? 0),
+          gold: Number(t?.earnedTrophies?.gold ?? 0),
+          platinum: Number(t?.earnedTrophies?.platinum ?? 0),
+        },
+      });
     }
 
     const total = Number(page?.totalItemCount ?? 0);
     offset += limit;
-    if (titles.length < limit || offset >= total) break;
+    if (pageTitles.length < limit || offset >= total) break;
   }
 
-  return platinums.filter((p) => p.name);
+  return titles;
 }
+
+// --- Matching a PSN title to a collection game ------------------------
 
 const EDITION_RE =
   /\b(?:digital\s+)?(?:standard|deluxe|collector'?s?|complete|definitive|ultimate|special|limited|launch|gold|premium|remastered|remaster|anniversary|game of the year|goty|bundle)\b(?:\s+edition)?/gi;
@@ -226,4 +291,165 @@ export function suggestGameId(
   if (pool.length === 0) return null;
 
   return (pool.find((g) => looksLikePlayStation(g.platform)) ?? pool[0]).id;
+}
+
+// --- Syncing one title's full trophy list -----------------------------
+
+export interface TrophyRow {
+  psnTrophyId: number;
+  groupId: string;
+  sortOrder: number;
+  name: string;
+  description: string | null;
+  iconUrl: string | null;
+  type: "bronze" | "silver" | "gold" | "platinum";
+  hidden: boolean;
+  rarityPct: number | null;
+  earned: boolean;
+  earnedAt: string | null; // ISO
+}
+
+function normalizeType(raw: unknown): TrophyRow["type"] {
+  const t = String(raw ?? "").toLowerCase();
+  return t === "bronze" || t === "silver" || t === "gold" || t === "platinum"
+    ? t
+    : "bronze";
+}
+
+// Fetches every trophy for a title (all groups — base game plus any DLC)
+// and merges in this account's earned status/date. Tries the given
+// npServiceName first; if that comes back empty, retries once with the
+// other value — Sony's PS5-vs-legacy split isn't always predictable from
+// the platform label alone.
+export async function syncTitleTrophies(
+  creds: PsnCredentials,
+  npCommunicationId: string,
+  npServiceNameHint: "trophy" | "trophy2"
+): Promise<TrophyRow[]> {
+  return withTimeout(
+    fetchTrophies(creds, npCommunicationId, npServiceNameHint),
+    45_000,
+    "PlayStation trophy sync"
+  );
+}
+
+async function fetchTrophies(
+  creds: PsnCredentials,
+  npCommunicationId: string,
+  npServiceNameHint: "trophy" | "trophy2"
+): Promise<TrophyRow[]> {
+  const { accessToken, onlineId } = await authorize(creds);
+  const accountId = await resolveAccountId(accessToken, onlineId);
+  const { getTitleTrophies, getUserTrophiesEarnedForTitle } = await loadPsnApi();
+  const auth = { accessToken };
+
+  async function tryService(npServiceName: "trophy" | "trophy2"): Promise<TrophyRow[]> {
+    const [defs, earned]: [any, any] = await Promise.all([
+      getTitleTrophies(auth, npCommunicationId, "all", { npServiceName }),
+      getUserTrophiesEarnedForTitle(auth, accountId, npCommunicationId, "all", { npServiceName }),
+    ]);
+
+    const earnedById = new Map<number, any>();
+    for (const e of (earned?.trophies ?? []) as any[]) {
+      const id = Number(e?.trophyId);
+      if (Number.isInteger(id)) earnedById.set(id, e);
+    }
+
+    return ((defs?.trophies ?? []) as any[])
+      .map((d, i): TrophyRow | null => {
+        const psnTrophyId = Number(d?.trophyId);
+        if (!Number.isInteger(psnTrophyId)) return null;
+        const e = earnedById.get(psnTrophyId);
+        return {
+          psnTrophyId,
+          groupId: String(d?.trophyGroupId ?? "default"),
+          sortOrder: i,
+          name: String(d?.trophyName ?? "Unknown trophy"),
+          description: d?.trophyDetail ?? null,
+          iconUrl: d?.trophyIconUrl ?? null,
+          type: normalizeType(d?.trophyType),
+          hidden: !!d?.trophyHidden,
+          rarityPct:
+            typeof d?.trophyEarnedRate === "string"
+              ? parseFloat(d.trophyEarnedRate)
+              : typeof d?.trophyEarnedRate === "number"
+              ? d.trophyEarnedRate
+              : null,
+          earned: !!e?.earned,
+          earnedAt: e?.earnedDateTime ?? null,
+        };
+      })
+      .filter((t): t is TrophyRow => t !== null);
+  }
+
+  let rows = await tryService(npServiceNameHint);
+  if (rows.length === 0) {
+    const other = npServiceNameHint === "trophy" ? "trophy2" : "trophy";
+    rows = await tryService(other);
+  }
+  return rows;
+}
+
+// --- Writing a sync result to the database -----------------------------
+
+export interface ApplySyncResult {
+  gameId: string;
+  title: string;
+  trophyCount: number;
+  earnedCount: number;
+  platinumEarned: boolean;
+}
+
+// Links `gameId` to a PSN title (if not already) and replaces its
+// trophy list with a fresh sync. Trophies are deleted and recreated each
+// time rather than diffed — earned status/dates always come straight
+// from PSN, so there's nothing worth preserving across a resync, and it
+// sidesteps id drift if Sony ever reorders a trophy list.
+export async function applyTrophySync(
+  creds: PsnCredentials,
+  gameId: string,
+  npCommunicationId: string,
+  npServiceName: "trophy" | "trophy2",
+  titleName: string
+): Promise<ApplySyncResult> {
+  const rows = await syncTitleTrophies(creds, npCommunicationId, npServiceName);
+  const platinumEarned = rows.some((r) => r.type === "platinum" && r.earned);
+  const earnedCount = rows.filter((r) => r.earned).length;
+
+  await prisma.$transaction([
+    prisma.trophy.deleteMany({ where: { gameId } }),
+    prisma.trophy.createMany({
+      data: rows.map((r) => ({
+        gameId,
+        psnTrophyId: r.psnTrophyId,
+        groupId: r.groupId,
+        sortOrder: r.sortOrder,
+        name: r.name,
+        description: r.description,
+        iconUrl: r.iconUrl,
+        type: r.type,
+        hidden: r.hidden,
+        rarityPct: r.rarityPct,
+        earned: r.earned,
+        earnedAt: r.earnedAt ? new Date(r.earnedAt) : null,
+      })),
+    }),
+    prisma.game.update({
+      where: { id: gameId },
+      data: {
+        psnNpCommunicationId: npCommunicationId,
+        psnNpServiceName: npServiceName,
+        trophiesSyncedAt: new Date(),
+        ...(platinumEarned ? { playStatus: "platinum" } : {}),
+      },
+    }),
+  ]);
+
+  return {
+    gameId,
+    title: titleName,
+    trophyCount: rows.length,
+    earnedCount,
+    platinumEarned,
+  };
 }

@@ -39,10 +39,20 @@ interface Instance {
   currencyApiUrl: string;
 }
 
+interface PsnProposal {
+  npCommunicationId: string;
+  npServiceName: "trophy" | "trophy2";
+  psnName: string;
+  psnPlatform: string;
+  defined: { bronze: number; silver: number; gold: number; platinum: number };
+  earned: { bronze: number; silver: number; gold: number; platinum: number };
+  suggestedGameId: string | null;
+}
+
 interface PsnScan {
-  proposals: { psnName: string; psnPlatform: string; suggestedGameId: string | null }[];
+  proposals: PsnProposal[];
   games: { id: string; title: string; platform: string }[];
-  platinumCount: number;
+  linkedCount: number;
 }
 
 interface UserRow {
@@ -179,13 +189,15 @@ export default function SettingsPage() {
       setPsnScan(scan);
       const seeded: Record<string, string> = {};
       for (const p of scan.proposals) {
-        seeded[`${p.psnName}|${p.psnPlatform}`] = p.suggestedGameId ?? "";
+        seeded[p.npCommunicationId] = p.suggestedGameId ?? "";
       }
       setPsnChoices(seeded);
       setPsnMsg(
-        scan.platinumCount === 0
-          ? "No earned platinums found on that account."
-          : `Found ${scan.platinumCount} platinum${scan.platinumCount === 1 ? "" : "s"}. Review the matches, then Apply.`
+        scan.proposals.length === 0
+          ? "Every PSN game is already linked, or none were found on that account."
+          : `Found ${scan.proposals.length} unlinked game${
+              scan.proposals.length === 1 ? "" : "s"
+            }. Review the matches, then Link & sync.`
       );
     } catch (e: any) {
       setPsnMsg(e.message);
@@ -195,8 +207,16 @@ export default function SettingsPage() {
   }
 
   async function applyPsn() {
-    const gameIds = Array.from(new Set(Object.values(psnChoices).filter(Boolean)));
-    if (gameIds.length === 0) {
+    if (!psnScan) return;
+    const links = psnScan.proposals
+      .filter((p) => psnChoices[p.npCommunicationId])
+      .map((p) => ({
+        npCommunicationId: p.npCommunicationId,
+        npServiceName: p.npServiceName,
+        psnName: p.psnName,
+        gameId: psnChoices[p.npCommunicationId],
+      }));
+    if (links.length === 0) {
       setPsnMsg("Nothing selected to apply.");
       return;
     }
@@ -206,13 +226,38 @@ export default function SettingsPage() {
       const res = await fetch("/api/psn/apply", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ gameIds }),
+        body: JSON.stringify({ links }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Apply failed");
       setPsnScan(null);
       setPsnChoices({});
-      setPsnMsg(`Updated ${data.updated} game${data.updated === 1 ? "" : "s"} to Platinum Achieved.`);
+      setPsnMsg(
+        `Linked and synced ${data.linked} game${data.linked === 1 ? "" : "s"}` +
+          (data.platinums ? ` (${data.platinums} with the platinum already earned)` : "") +
+          (data.errors?.length ? `. ${data.errors.length} failed — try those again later.` : ".")
+      );
+    } catch (e: any) {
+      setPsnMsg(e.message);
+    } finally {
+      setPsnBusy(false);
+    }
+  }
+
+  async function syncAllPsn() {
+    setPsnBusy(true);
+    setPsnMsg(null);
+    try {
+      const res = await fetch("/api/psn/sync-all", { method: "POST" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Sync failed");
+      setPsnMsg(
+        data.synced === 0 && data.remaining === 0
+          ? "No linked games to sync yet — link some above first."
+          : `Synced ${data.synced} game${data.synced === 1 ? "" : "s"}` +
+              (data.remaining ? `. ${data.remaining} left — press again to continue.` : ".") +
+              (data.errors?.length ? ` ${data.errors.length} failed.` : "")
+      );
     } catch (e: any) {
       setPsnMsg(e.message);
     } finally {
@@ -582,9 +627,10 @@ export default function SettingsPage() {
           />
         </div>
         <p className="mt-1 text-sm text-mute">
-          Reads your PlayStation trophy progress and lets you mark games where
-          you&rsquo;ve earned the platinum as{" "}
-          <span className="text-parchment">Platinum Achieved</span>.
+          Pulls the full trophy list for your PlayStation games — every
+          bronze/silver/gold/platinum, which you&rsquo;ve earned and when — and
+          shows it on each game&rsquo;s page. Earning the platinum also marks the
+          game <span className="text-parchment">Platinum Achieved</span>.
         </p>
         <p className="mt-2 text-xs text-mute">
           Token: sign in at playstation.com, then open{" "}
@@ -631,42 +677,57 @@ export default function SettingsPage() {
             disabled={psnBusy || !prefs.psnEnabled}
             className="btn-secondary text-xs"
           >
-            {psnBusy ? "Working…" : "Scan for platinums"}
+            {psnBusy ? "Working…" : "Scan for games"}
+          </button>
+          <button
+            type="button"
+            onClick={syncAllPsn}
+            disabled={psnBusy || !prefs.psnEnabled}
+            className="btn-secondary text-xs"
+          >
+            {psnBusy ? "Working…" : "Sync linked games"}
           </button>
           {psnMsg && <span className="text-xs text-amber">{psnMsg}</span>}
         </div>
 
         {psnScan && psnScan.proposals.length > 0 && (
           <div className="mt-4 space-y-2">
-            {psnScan.proposals.map((p) => {
-              const rowKey = `${p.psnName}|${p.psnPlatform}`;
-              return (
-                <div
-                  key={rowKey}
-                  className="grid grid-cols-1 gap-1 sm:grid-cols-[1fr_1fr] sm:items-center sm:gap-3"
-                >
-                  <span className="text-sm text-parchment">
-                    {p.psnName}
-                    <span className="text-xs text-mute"> · {p.psnPlatform}</span>
+            <p className="text-xs text-mute">
+              Pick which collection game each PSN title is, or leave it as
+              &ldquo;skip&rdquo;. {psnScan.linkedCount} already linked.
+            </p>
+            {psnScan.proposals.map((p) => (
+              <div
+                key={p.npCommunicationId}
+                className="grid grid-cols-1 gap-1 sm:grid-cols-[1fr_1fr] sm:items-center sm:gap-3"
+              >
+                <span className="text-sm text-parchment">
+                  {p.psnName}
+                  <span className="text-xs text-mute">
+                    {" "}
+                    · {p.psnPlatform} · {p.earned.bronze + p.earned.silver + p.earned.gold + p.earned.platinum}/
+                    {p.defined.bronze + p.defined.silver + p.defined.gold + p.defined.platinum} earned
                   </span>
-                  <select
-                    className="field"
-                    value={psnChoices[rowKey] ?? ""}
-                    onChange={(e) => setPsnChoices((c) => ({ ...c, [rowKey]: e.target.value }))}
-                  >
-                    <option value="">— skip —</option>
-                    {psnScan.games.map((g) => (
-                      <option key={g.id} value={g.id}>
-                        {g.title} — {g.platform}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              );
-            })}
+                </span>
+                <select
+                  className="field"
+                  value={psnChoices[p.npCommunicationId] ?? ""}
+                  onChange={(e) =>
+                    setPsnChoices((c) => ({ ...c, [p.npCommunicationId]: e.target.value }))
+                  }
+                >
+                  <option value="">— skip —</option>
+                  {psnScan.games.map((g) => (
+                    <option key={g.id} value={g.id}>
+                      {g.title} — {g.platform}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            ))}
             <div className="pt-2">
               <button type="button" onClick={applyPsn} disabled={psnBusy} className="btn-primary text-xs">
-                Apply selected
+                Link &amp; sync selected
               </button>
             </div>
           </div>

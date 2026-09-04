@@ -18,7 +18,15 @@ async function ownedGame(id: string) {
 export async function GET(_req: NextRequest, { params }: { params: { id: string } }) {
   const res = await ownedGame(params.id);
   if ("error" in res) return res.error;
-  return NextResponse.json(res.game);
+
+  const trophies = res.game.psnNpCommunicationId
+    ? await prisma.trophy.findMany({
+        where: { gameId: params.id },
+        orderBy: [{ groupId: "asc" }, { sortOrder: "asc" }],
+      })
+    : [];
+
+  return NextResponse.json({ ...res.game, trophies });
 }
 
 // Generic partial update — the edit page sends only the fields that changed.

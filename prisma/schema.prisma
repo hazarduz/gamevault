@@ -50,6 +50,16 @@ model Game {
   // matching. Null for everything added any other way.
   steamAppId    Int?     // unique per user — see @@unique below
 
+  // --- PlayStation trophy sync ---
+  // Set once a game is linked to a PSN title (via Settings -> PlayStation
+  // trophies -> "Scan for games", confirming the match). Lets later syncs
+  // go straight to this title instead of re-matching by name. Null until
+  // linked. See lib/psn.ts.
+  psnNpCommunicationId String?
+  psnNpServiceName     String?   // "trophy2" (PS5) | "trophy" (PS4/PS3/Vita)
+  trophiesSyncedAt     DateTime?
+  trophies             Trophy[]
+
   // --- IGDB metadata ---
   igdbId        Int?     // unique per user — see @@unique below
   coverUrl      String?
@@ -162,6 +172,33 @@ model Settings {
   dimCompleted       Boolean @default(true)
 
   updatedAt DateTime @updatedAt
+}
+
+// One PSN trophy, belonging to a Game linked via psnNpCommunicationId.
+// Fully replaced (delete + recreate) on every sync in lib/psn.ts — earned
+// status and dates always come fresh from PSN, so there's nothing to
+// diff, and it sidesteps id drift if PSN ever reorders a trophy list.
+model Trophy {
+  id     String @id @default(cuid())
+  gameId String
+  game   Game   @relation(fields: [gameId], references: [id], onDelete: Cascade)
+
+  psnTrophyId Int
+  groupId     String @default("default") // PSN trophy group: "default" (base game) or "001", "002"... (DLC)
+  sortOrder   Int    @default(0)
+
+  name        String
+  description String? @db.Text
+  iconUrl     String?
+  type        String  // "bronze" | "silver" | "gold" | "platinum"
+  hidden      Boolean @default(false) // PSN hides the name/description until earned
+  rarityPct   Float?  // % of players who have earned it ("trophyEarnedRate")
+
+  earned   Boolean   @default(false)
+  earnedAt DateTime?
+
+  @@unique([gameId, psnTrophyId, groupId])
+  @@index([gameId])
 }
 
 // Single-row cache (id is always "singleton") for the "Currently Free"

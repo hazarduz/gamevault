@@ -2,10 +2,25 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import Image from "next/image";
 import { PLATFORM_OPTIONS, isDigitalOnlyPlatform } from "@/lib/platforms";
 import { PLAY_STATUS_OPTIONS } from "@/lib/play-status";
 import MediaIcon from "@/components/MediaIcon";
+
+interface Trophy {
+  id: string;
+  groupId: string;
+  sortOrder: number;
+  name: string;
+  description: string | null;
+  iconUrl: string | null;
+  type: "bronze" | "silver" | "gold" | "platinum";
+  hidden: boolean;
+  rarityPct: number | null;
+  earned: boolean;
+  earnedAt: string | null;
+}
 
 interface Game {
   id: string;
@@ -34,7 +49,28 @@ interface Game {
   hltbMainExtraHours: number | null;
   hltbCompletionistHours: number | null;
   hltbUpdatedAt: string | null;
+  psnNpCommunicationId: string | null;
+  trophiesSyncedAt: string | null;
+  trophies: Trophy[];
 }
+
+function looksLikePlayStation(platform: string): boolean {
+  return /playstation|ps ?[1-5]|vita|psp/i.test(platform);
+}
+
+const TROPHY_TYPE_COLOR: Record<Trophy["type"], string> = {
+  bronze: "bg-orange-400",
+  silver: "bg-slate-300",
+  gold: "bg-yellow-400",
+  platinum: "bg-sky-200",
+};
+
+const TROPHY_TYPE_LABEL: Record<Trophy["type"], string> = {
+  bronze: "Bronze",
+  silver: "Silver",
+  gold: "Gold",
+  platinum: "Platinum",
+};
 
 export default function GameDetailPage({ params }: { params: { id: string } }) {
   const router = useRouter();
@@ -43,6 +79,7 @@ export default function GameDetailPage({ params }: { params: { id: string } }) {
   const [priceLoading, setPriceLoading] = useState(false);
   const [hltbLoading, setHltbLoading] = useState(false);
   const [igdbLoading, setIgdbLoading] = useState(false);
+  const [trophyLoading, setTrophyLoading] = useState(false);
   const [statusMsg, setStatusMsg] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -132,6 +169,27 @@ export default function GameDetailPage({ params }: { params: { id: string } }) {
       setStatusMsg(e.message);
     } finally {
       setIgdbLoading(false);
+    }
+  }
+
+  async function syncTrophies() {
+    if (!game) return;
+    setTrophyLoading(true);
+    setStatusMsg(null);
+    try {
+      const res = await fetch(`/api/games/${game.id}/sync-trophies`, { method: "POST" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Trophy sync failed");
+      const refreshed = await fetch(`/api/games/${game.id}`).then((r) => r.json());
+      setGame(refreshed);
+      setStatusMsg(
+        `Synced ${data.trophyCount} trophies — ${data.earnedCount} earned` +
+          (data.platinumEarned ? ", including the platinum." : ".")
+      );
+    } catch (e: any) {
+      setStatusMsg(e.message);
+    } finally {
+      setTrophyLoading(false);
     }
   }
 
@@ -348,6 +406,95 @@ export default function GameDetailPage({ params }: { params: { id: string } }) {
             )}
           </div>
         </section>
+
+        {/* --- Trophies (PlayStation) --- */}
+        {looksLikePlayStation(game.platform) && (
+          <section className="mt-8">
+            <div className="flex items-center justify-between">
+              <h2 className="font-display text-lg font-bold text-parchment">Trophies</h2>
+              {game.psnNpCommunicationId && (
+                <button
+                  onClick={syncTrophies}
+                  disabled={trophyLoading}
+                  className="btn-secondary text-xs"
+                >
+                  {trophyLoading ? "Syncing…" : "Refresh trophies"}
+                </button>
+              )}
+            </div>
+
+            {!game.psnNpCommunicationId ? (
+              <p className="mt-2 text-sm text-mute">
+                Not linked to a PSN title yet. Link it from{" "}
+                <Link href="/settings" className="text-amber underline">
+                  Settings → PlayStation trophies
+                </Link>
+                .
+              </p>
+            ) : (
+              <>
+                <p className="mt-1 text-xs text-mute">
+                  {game.trophies.filter((t) => t.earned).length} of {game.trophies.length} earned
+                  {game.trophiesSyncedAt &&
+                    ` · synced ${new Date(game.trophiesSyncedAt).toLocaleDateString()}`}
+                </p>
+
+                {game.trophies.length === 0 ? (
+                  <p className="mt-3 text-sm text-mute">
+                    No trophies came back for this title — try refreshing.
+                  </p>
+                ) : (
+                  <div className="mt-3 space-y-1.5">
+                    {game.trophies.map((t) => (
+                      <div
+                        key={t.id}
+                        className={`flex items-center gap-3 rounded-md border border-ink-line bg-ink-soft px-3 py-2 ${
+                          t.earned ? "" : "opacity-50"
+                        }`}
+                      >
+                        <div className="relative h-10 w-10 flex-shrink-0 overflow-hidden rounded bg-ink-softer">
+                          {t.iconUrl && (
+                            // Plain <img>: PSN's trophy-icon hosts vary and
+                            // aren't worth maintaining in next.config.
+                            <img
+                              src={t.iconUrl}
+                              alt=""
+                              className="h-full w-full object-cover"
+                            />
+                          )}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-1.5">
+                            <span
+                              className={`h-2 w-2 flex-shrink-0 rounded-full ${TROPHY_TYPE_COLOR[t.type]}`}
+                              title={TROPHY_TYPE_LABEL[t.type]}
+                            />
+                            <p className="truncate text-sm text-parchment">
+                              {t.hidden && !t.earned ? "Hidden trophy" : t.name}
+                            </p>
+                          </div>
+                          {t.description && !(t.hidden && !t.earned) && (
+                            <p className="truncate text-xs text-mute">{t.description}</p>
+                          )}
+                        </div>
+                        <div className="flex-shrink-0 text-right text-xs text-mute">
+                          <p>
+                            {t.earned
+                              ? t.earnedAt
+                                ? new Date(t.earnedAt).toLocaleDateString()
+                                : "Earned"
+                              : "Locked"}
+                          </p>
+                          {t.rarityPct != null && <p className="mt-0.5">{t.rarityPct.toFixed(1)}%</p>}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </>
+            )}
+          </section>
+        )}
 
         <section className="mt-6">
           <label className="label">Notes</label>

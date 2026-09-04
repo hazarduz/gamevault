@@ -25,8 +25,10 @@ account has its own completely separate collection.
   or typed in by hand.
 - **Completion times** via HowLongToBeat.
 - **PlayStation trophy sync** — point it at your PSN account with an NPSSO token
-  and it finds every game where you've earned the platinum, then lets you confirm
-  the match and mark them **Platinum Achieved**.
+  and it lists every PSN game, confirmed against your collection. Linking one
+  pulls its full trophy list onto the game's page — every bronze/silver/gold/
+  platinum, which you've earned and when — and earning the platinum marks the
+  game **Platinum Achieved**. Re-sync one game, or all linked games at once.
 - **Steam library import** — add your Steam Web API key once (admin), then each
   user pastes their SteamID in Settings and pulls their owned games in, matched
   against IGDB for art and metadata. Games come in as Digital / PC, and a re-scan
@@ -111,6 +113,12 @@ None of PriceCharting, HowLongToBeat or PSN offer a free public API, so:
   scraped from the site's frontend first).
 - **`lib/psn.ts`** uses the `psn-api` package against Sony's real endpoints,
   authenticated with a per-user NPSSO token (lasts ~2 months, then re-paste it).
+  Trophy definitions and earned status come from two calls per linked title
+  (`getTitleTrophies` / `getUserTrophiesEarnedForTitle`); PS5 titles need
+  `npServiceName: "trophy2"` and PS4/PS3/Vita need `"trophy"` — read from the
+  title's own record where PSN provides it, guessed from the platform label
+  otherwise, with an automatic retry on the other value if a sync comes back
+  empty.
 
 Steam is the exception — **`lib/steam.ts`** uses the official Steam Web API
 (`GetOwnedGames` / `ResolveVanityURL`). It needs a free key from
@@ -151,7 +159,9 @@ app/
   api/games/                 Per-user CRUD (ownership-checked)
   api/igdb/search/           IGDB search + detail
   api/enrich/price · hltb/   PriceCharting / HowLongToBeat
-  api/psn/scan · apply/      PlayStation platinum sync
+  api/psn/scan · apply/      PSN title discovery / link + trophy sync
+  api/psn/sync-all/          Re-sync every already-linked PSN game
+  api/games/[id]/sync-trophies/  Re-sync one linked game's trophies
   api/steam/scan/            Steam owned-games list (matched client-side)
   api/free-games/refresh/    Force-refresh the Currently Free feed
   api/wishlist/ · platforms/ Wishlist add / owned-platform list
