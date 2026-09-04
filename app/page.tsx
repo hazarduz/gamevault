@@ -64,23 +64,38 @@ export default async function DashboardPage({
     }),
   ]);
 
-  // Trophy earned/total per linked game, for the badge on each card.
-  // Grouped rather than included per-game so unlinked collections (the
-  // common case) skip the Trophy table entirely.
-  const linkedIds = games.filter((g) => g.psnNpCommunicationId).map((g) => g.id);
-  const trophyCounts: Record<string, { earned: number; total: number }> = {};
-  if (linkedIds.length > 0) {
-    const rows = await prisma.trophy.groupBy({
+  // Earned/total per linked game, for the badge on each card. Grouped
+  // rather than included per-game so collections with no PSN/Steam links
+  // (the common case) skip both tables entirely. PSN trophies win when a
+  // game has both (e.g. a PS5 game cross-linked to Steam for reference) —
+  // they're the game's actual platform, not a reference list.
+  async function groupCounts(
+    model: "trophy" | "achievement",
+    ids: string[]
+  ): Promise<Record<string, { earned: number; total: number }>> {
+    const out: Record<string, { earned: number; total: number }> = {};
+    if (ids.length === 0) return out;
+    const rows = await (prisma[model] as any).groupBy({
       by: ["gameId", "earned"],
-      where: { gameId: { in: linkedIds } },
+      where: { gameId: { in: ids } },
       _count: { _all: true },
     });
-    for (const r of rows) {
-      const c = trophyCounts[r.gameId] ?? (trophyCounts[r.gameId] = { earned: 0, total: 0 });
+    for (const r of rows as { gameId: string; earned: boolean; _count: { _all: number } }[]) {
+      const c = out[r.gameId] ?? (out[r.gameId] = { earned: 0, total: 0 });
       c.total += r._count._all;
       if (r.earned) c.earned += r._count._all;
     }
+    return out;
   }
+
+  const trophyCounts = await groupCounts(
+    "trophy",
+    games.filter((g) => g.psnNpCommunicationId).map((g) => g.id)
+  );
+  const achievementCounts = await groupCounts(
+    "achievement",
+    games.filter((g) => g.steamAchievementsAppId || g.steamAppId).map((g) => g.id)
+  );
 
   // Preserved across the search form.
   const keep: Record<string, string> = {};
@@ -160,7 +175,7 @@ export default async function DashboardPage({
             score: g.aggregatedRating,
             playStatus: g.playStatus,
             format: g.format,
-            trophies: trophyCounts[g.id] ?? null,
+            trophies: trophyCounts[g.id] ?? achievementCounts[g.id] ?? null,
           }))}
           prefs={{
             scoreBadgeEnabled: prefs.scoreBadgeEnabled,

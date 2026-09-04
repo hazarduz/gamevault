@@ -19,14 +19,22 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
   const res = await ownedGame(params.id);
   if ("error" in res) return res.error;
 
-  const trophies = res.game.psnNpCommunicationId
-    ? await prisma.trophy.findMany({
-        where: { gameId: params.id },
-        orderBy: [{ groupId: "asc" }, { sortOrder: "asc" }],
-      })
-    : [];
+  const [trophies, achievements] = await Promise.all([
+    res.game.psnNpCommunicationId
+      ? prisma.trophy.findMany({
+          where: { gameId: params.id },
+          orderBy: [{ groupId: "asc" }, { sortOrder: "asc" }],
+        })
+      : [],
+    res.game.steamAchievementsAppId || res.game.steamAppId
+      ? prisma.achievement.findMany({
+          where: { gameId: params.id },
+          orderBy: { sortOrder: "asc" },
+        })
+      : [],
+  ]);
 
-  return NextResponse.json({ ...res.game, trophies });
+  return NextResponse.json({ ...res.game, trophies, achievements });
 }
 
 // Generic partial update — the edit page sends only the fields that changed.

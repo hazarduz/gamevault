@@ -33,6 +33,11 @@ account has its own completely separate collection.
   user pastes their SteamID in Settings and pulls their owned games in, matched
   against IGDB for art and metadata. Games come in as Digital / PC, and a re-scan
   skips anything already imported.
+- **Steam achievement sync** — the achievement list for any game, not just Steam
+  ones: definitions are public per app, so a PS4/PS5 (or any other-platform)
+  game can be cross-linked to its Steam release for a reference achievement
+  list, with real progress if this Steam account happens to have played it
+  there too. Games already pulled in via Steam library import link automatically.
 - **Currently Free** — a page of free-to-keep games from the Epic Games Store and
   cross-platform giveaway round-ups (GamerPower). Cached in the database and
   refreshed on the first visit after it goes stale (interval set in Settings,
@@ -125,6 +130,14 @@ Steam is the exception — **`lib/steam.ts`** uses the official Steam Web API
 https://steamcommunity.com/dev/apikey, set in Settings or as `STEAM_API_KEY`, and
 the target profile's "Game details" privacy set to Public.
 
+- **`lib/steam-achievements.ts`** reuses that same key. `GetSchemaForGame`
+  (achievement definitions) and `GetGlobalAchievementPercentagesForApp` (rarity)
+  are public per app — no ownership needed, which is what makes cross-linking a
+  non-Steam game possible. `GetPlayerAchievements` (this account's earned status)
+  just comes back empty for an app the account hasn't played. Steam's app list
+  (`GetAppList`, ~190k entries) is cached in `SteamAppCache` and searched locally
+  when linking a game that didn't come from Steam import.
+
 - **`lib/free-games.ts`** merges **`lib/gamerpower.ts`** (GamerPower's keyless
   giveaways API) and **`lib/epic-free.ts`** (Epic's own `freeGamesPromotions`
   endpoint), caches the result in the `FreeGamesCache` table, and only refetches
@@ -162,6 +175,8 @@ app/
   api/psn/scan · apply/      PSN title discovery / link + trophy sync
   api/psn/sync-all/          Re-sync every already-linked PSN game
   api/games/[id]/sync-trophies/  Re-sync one linked game's trophies
+  api/steam/achievements/    Scan / apply / sync-all for Steam achievements
+  api/games/[id]/sync-achievements/  Re-sync one linked game's achievements
   api/steam/scan/            Steam owned-games list (matched client-side)
   api/free-games/refresh/    Force-refresh the Currently Free feed
   api/wishlist/ · platforms/ Wishlist add / owned-platform list
@@ -172,6 +187,7 @@ lib/
   igdb.ts                    IGDB client — search, detail, upcoming, similar
   pricecharting.ts hltb.ts   Value & completion-time lookups
   psn.ts steam.ts            PSN trophies / Steam library
+  steam-achievements.ts      Steam achievements — any game, cross-platform
   free-games.ts gamerpower.ts epic-free.ts   Currently Free feed + its sources
   score-badge.ts play-status.ts media.ts   Badge / status / media helpers
   tenant.ts prefs.ts         Multi-user bootstrap + per-user preferences

@@ -10,6 +10,7 @@ import {
 } from "@/lib/play-status";
 import StatusMark from "@/components/StatusMark";
 import SteamImport from "@/components/SteamImport";
+import SteamAchievements from "@/components/SteamAchievements";
 
 interface Prefs {
   scoreBadgeEnabled: boolean;
@@ -824,6 +825,12 @@ export default function SettingsPage() {
           </button>
         </div>
       </section>
+
+      {/* --- Steam achievements (per-user) --- */}
+      <SteamAchievements
+        hasSteamId={!!prefs.steamId}
+        available={instance.steamImportEnabled && instance.hasSteamApiKey}
+      />
 
       {/* --- Steam library import (per-user) --- */}
       <SteamImport

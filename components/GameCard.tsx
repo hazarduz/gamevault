@@ -202,7 +202,7 @@ export default function GameCard({
               {trophies && (
                 <span
                   className="flex flex-shrink-0 items-center gap-1 text-xs text-mute"
-                  title={`${trophies.earned} of ${trophies.total} trophies earned`}
+                  title={`${trophies.earned} of ${trophies.total} earned`}
                 >
                   <TrophyGlyph className="h-3.5 w-3.5" />
                   {trophies.earned}/{trophies.total}
@@ -217,7 +217,8 @@ export default function GameCard({
 }
 
 // Same silhouette as the animated platinum marker in StatusMark.tsx, just
-// static and small — used here as a plain "trophies earned" glyph.
+// static and small — a plain "earned/total" glyph for either PSN
+// trophies or Steam achievements, whichever the game is linked to.
 function TrophyGlyph({ className = "" }: { className?: string }) {
   return (
     <svg

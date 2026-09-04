@@ -60,6 +60,19 @@ model Game {
   trophiesSyncedAt     DateTime?
   trophies             Trophy[]
 
+  // --- Steam achievement sync ---
+  // The Steam app whose achievement list this game shows. Auto-set to
+  // steamAppId for games pulled in via Steam library import; for anything
+  // else (including PS4/PS5 games — Settings -> Steam achievements lets
+  // you cross-link to that game's Steam release) it's chosen by searching
+  // Steam's app list. Earned status only appears if this Steam account
+  // has actually played that app — for a cross-linked console game that's
+  // simply "no", and the list shows as a reference with nothing ticked.
+  // See lib/steam-achievements.ts.
+  steamAchievementsAppId    Int?
+  steamAchievementsSyncedAt DateTime?
+  achievements              Achievement[]
+
   // --- IGDB metadata ---
   igdbId        Int?     // unique per user — see @@unique below
   coverUrl      String?
@@ -206,6 +219,43 @@ model Trophy {
 // built by lib/free-games.ts. Refreshed when `fetchedAt` is older than
 // Settings.freeGamesTtlHours, or on demand via the Refresh button.
 model FreeGamesCache {
+  id        String   @id @default("singleton")
+  payload   Json
+  fetchedAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// One Steam achievement, belonging to a Game linked via
+// steamAchievementsAppId. Fully replaced (delete + recreate) on every
+// sync, same reasoning as Trophy — earned status always comes fresh from
+// Steam, nothing worth diffing.
+model Achievement {
+  id     String @id @default(cuid())
+  gameId String
+  game   Game   @relation(fields: [gameId], references: [id], onDelete: Cascade)
+
+  steamApiName String // Steam's stable internal id for the achievement
+  sortOrder    Int    @default(0)
+
+  name        String
+  description String? @db.Text
+  iconUrl     String? // unlocked icon
+  iconGrayUrl String? // locked icon
+  globalPct   Float?  // % of all Steam players who have it
+
+  earned   Boolean   @default(false)
+  earnedAt DateTime?
+
+  @@unique([gameId, steamApiName])
+  @@index([gameId])
+}
+
+// Cached copy of Steam's full app list (~190k entries: {appid, name}),
+// used to search for a game's Steam release when linking achievements.
+// Steam has no name-search endpoint, so lib/steam-achievements.ts fetches
+// the whole list via ISteamApps/GetAppList and matches locally; refreshed
+// only occasionally (the list barely changes day to day).
+model SteamAppCache {
   id        String   @id @default("singleton")
   payload   Json
   fetchedAt DateTime @default(now())

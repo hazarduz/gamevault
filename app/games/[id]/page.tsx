@@ -22,6 +22,30 @@ interface Trophy {
   earnedAt: string | null;
 }
 
+interface Achievement {
+  id: string;
+  sortOrder: number;
+  name: string;
+  description: string | null;
+  iconUrl: string | null;
+  iconGrayUrl: string | null;
+  globalPct: number | null;
+  earned: boolean;
+  earnedAt: string | null;
+}
+
+// Platforms where a Steam release essentially never exists — everything
+// else gets an Achievements section (with a link-it hint when unlinked),
+// since any of them, PC included, can be cross-referenced to Steam.
+const NO_STEAM_PLATFORMS = new Set([
+  "SNES", "NES", "Game Boy Advance", "Game Boy Color", "Game Boy",
+  "Nintendo DS", "Nintendo 3DS", "Nintendo 64", "GameCube", "Wii", "Wii U",
+  "PlayStation 1", "PlayStation 2", "PSP",
+]);
+function mightHaveSteamRelease(platform: string): boolean {
+  return !NO_STEAM_PLATFORMS.has(platform);
+}
+
 interface Game {
   id: string;
   title: string;
@@ -52,6 +76,10 @@ interface Game {
   psnNpCommunicationId: string | null;
   trophiesSyncedAt: string | null;
   trophies: Trophy[];
+  steamAppId: number | null;
+  steamAchievementsAppId: number | null;
+  steamAchievementsSyncedAt: string | null;
+  achievements: Achievement[];
 }
 
 function looksLikePlayStation(platform: string): boolean {
@@ -80,6 +108,7 @@ export default function GameDetailPage({ params }: { params: { id: string } }) {
   const [hltbLoading, setHltbLoading] = useState(false);
   const [igdbLoading, setIgdbLoading] = useState(false);
   const [trophyLoading, setTrophyLoading] = useState(false);
+  const [achievementLoading, setAchievementLoading] = useState(false);
   const [statusMsg, setStatusMsg] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -190,6 +219,24 @@ export default function GameDetailPage({ params }: { params: { id: string } }) {
       setStatusMsg(e.message);
     } finally {
       setTrophyLoading(false);
+    }
+  }
+
+  async function syncAchievements() {
+    if (!game) return;
+    setAchievementLoading(true);
+    setStatusMsg(null);
+    try {
+      const res = await fetch(`/api/games/${game.id}/sync-achievements`, { method: "POST" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Achievement sync failed");
+      const refreshed = await fetch(`/api/games/${game.id}`).then((r) => r.json());
+      setGame(refreshed);
+      setStatusMsg(`Synced ${data.achievementCount} achievements — ${data.earnedCount} earned.`);
+    } catch (e: any) {
+      setStatusMsg(e.message);
+    } finally {
+      setAchievementLoading(false);
     }
   }
 
@@ -489,6 +536,95 @@ export default function GameDetailPage({ params }: { params: { id: string } }) {
                         </div>
                       </div>
                     ))}
+                  </div>
+                )}
+              </>
+            )}
+          </section>
+        )}
+
+        {/* --- Achievements (Steam, including cross-linked console games) --- */}
+        {mightHaveSteamRelease(game.platform) && (
+          <section className="mt-8">
+            <div className="flex items-center justify-between">
+              <h2 className="font-display text-lg font-bold text-parchment">Achievements</h2>
+              {(game.steamAchievementsAppId || game.steamAppId) && (
+                <button
+                  onClick={syncAchievements}
+                  disabled={achievementLoading}
+                  className="btn-secondary text-xs"
+                >
+                  {achievementLoading ? "Syncing…" : "Refresh achievements"}
+                </button>
+              )}
+            </div>
+
+            {!(game.steamAchievementsAppId || game.steamAppId) ? (
+              <p className="mt-2 text-sm text-mute">
+                Not linked to a Steam app yet. Link it from{" "}
+                <Link href="/settings" className="text-amber underline">
+                  Settings → Steam achievements
+                </Link>
+                {" "}— works even for a {game.platform} game, cross-referenced to its
+                Steam release.
+              </p>
+            ) : (
+              <>
+                {!game.steamAppId && (
+                  <p className="mt-1 text-xs text-mute">
+                    Cross-linked to the Steam release. Your progress only shows up
+                    here if this Steam account has played it there too.
+                  </p>
+                )}
+                <p className="mt-1 text-xs text-mute">
+                  {game.achievements.filter((a) => a.earned).length} of{" "}
+                  {game.achievements.length} earned
+                  {game.steamAchievementsSyncedAt &&
+                    ` · synced ${new Date(game.steamAchievementsSyncedAt).toLocaleDateString()}`}
+                </p>
+
+                {game.achievements.length === 0 ? (
+                  <p className="mt-3 text-sm text-mute">
+                    This game has no Steam achievements, or none came back — try
+                    refreshing.
+                  </p>
+                ) : (
+                  <div className="mt-3 space-y-1.5">
+                    {game.achievements.map((a) => {
+                      const icon = a.earned ? a.iconUrl : a.iconGrayUrl ?? a.iconUrl;
+                      return (
+                        <div
+                          key={a.id}
+                          className={`flex items-center gap-3 rounded-md border border-ink-line bg-ink-soft px-3 py-2 ${
+                            a.earned ? "" : "opacity-50"
+                          }`}
+                        >
+                          <div className="relative h-10 w-10 flex-shrink-0 overflow-hidden rounded bg-ink-softer">
+                            {icon && (
+                              // Plain <img>: Steam's achievement-icon host
+                              // (akamai) isn't worth adding to next.config.
+                              <img src={icon} alt="" className="h-full w-full object-cover" />
+                            )}
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate text-sm text-parchment">{a.name}</p>
+                            {a.description && (
+                              <p className="truncate text-xs text-mute">{a.description}</p>
+                            )}
+                          </div>
+                          <div className="flex-shrink-0 text-right text-xs text-mute">
+                            <p>
+                              {a.earned
+                                ? a.earnedAt
+                                  ? new Date(a.earnedAt).toLocaleDateString()
+                                  : "Earned"
+                                : "Locked"}
+                            </p>
+                            {a.globalPct != null && <p className="mt-0.5">{a.globalPct.toFixed(1)}%</p>}
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
                 )}
               </>
