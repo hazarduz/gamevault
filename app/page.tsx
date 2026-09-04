@@ -64,6 +64,24 @@ export default async function DashboardPage({
     }),
   ]);
 
+  // Trophy earned/total per linked game, for the badge on each card.
+  // Grouped rather than included per-game so unlinked collections (the
+  // common case) skip the Trophy table entirely.
+  const linkedIds = games.filter((g) => g.psnNpCommunicationId).map((g) => g.id);
+  const trophyCounts: Record<string, { earned: number; total: number }> = {};
+  if (linkedIds.length > 0) {
+    const rows = await prisma.trophy.groupBy({
+      by: ["gameId", "earned"],
+      where: { gameId: { in: linkedIds } },
+      _count: { _all: true },
+    });
+    for (const r of rows) {
+      const c = trophyCounts[r.gameId] ?? (trophyCounts[r.gameId] = { earned: 0, total: 0 });
+      c.total += r._count._all;
+      if (r.earned) c.earned += r._count._all;
+    }
+  }
+
   // Preserved across the search form.
   const keep: Record<string, string> = {};
   if (sort !== DEFAULT_SORT) keep.sort = sort;
@@ -142,6 +160,7 @@ export default async function DashboardPage({
             score: g.aggregatedRating,
             playStatus: g.playStatus,
             format: g.format,
+            trophies: trophyCounts[g.id] ?? null,
           }))}
           prefs={{
             scoreBadgeEnabled: prefs.scoreBadgeEnabled,

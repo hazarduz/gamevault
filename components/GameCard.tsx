@@ -26,6 +26,7 @@ interface GameCardProps {
   dimPlayedPreviously?: boolean;
   dimStrength?: number;
   format?: string;
+  trophies?: { earned: number; total: number } | null;
   // Multi-select (home page)
   selectable?: boolean;
   selected?: boolean;
@@ -53,6 +54,7 @@ export default function GameCard({
   dimPlayedPreviously = false,
   dimStrength = 70,
   format = "Physical",
+  trophies = null,
   selectable = false,
   selected = false,
   selectionActive = false,
@@ -190,13 +192,50 @@ export default function GameCard({
         {wishlist ? (
           <p className="mt-auto pt-2 text-xs text-mute">{releaseLabel}</p>
         ) : (
-          value !== null && (
-            <p className="mt-auto pt-2 font-display text-sm font-bold text-amber">
-              £{value.toFixed(2)}
-            </p>
+          (value !== null || trophies) && (
+            <div className="mt-auto flex items-center justify-between gap-2 pt-2">
+              {value !== null ? (
+                <p className="font-display text-sm font-bold text-amber">£{value.toFixed(2)}</p>
+              ) : (
+                <span />
+              )}
+              {trophies && (
+                <span
+                  className="flex flex-shrink-0 items-center gap-1 text-xs text-mute"
+                  title={`${trophies.earned} of ${trophies.total} trophies earned`}
+                >
+                  <TrophyGlyph className="h-3.5 w-3.5" />
+                  {trophies.earned}/{trophies.total}
+                </span>
+              )}
+            </div>
           )
         )}
       </div>
     </Link>
+  );
+}
+
+// Same silhouette as the animated platinum marker in StatusMark.tsx, just
+// static and small — used here as a plain "trophies earned" glyph.
+function TrophyGlyph({ className = "" }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      className={className}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6" />
+      <path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18" />
+      <path d="M4 22h16" />
+      <path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22" />
+      <path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22" />
+      <path d="M18 2H6v7a6 6 0 0 0 12 0V2Z" />
+    </svg>
   );
 }

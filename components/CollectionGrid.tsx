@@ -23,6 +23,7 @@ export interface CollectionCard {
   score: number | null;
   playStatus: string;
   format: string;
+  trophies: { earned: number; total: number } | null;
 }
 
 interface Prefs {
@@ -187,6 +188,7 @@ export default function CollectionGrid({
             dimPlayedPreviously={prefs.dimPlayedPreviously}
             dimStrength={prefs.dimStrength}
             format={g.format}
+            trophies={g.trophies}
             selectable
             selected={selected.has(g.id)}
             selectionActive={selectionActive}
