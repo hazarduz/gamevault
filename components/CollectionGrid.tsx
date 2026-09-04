@@ -1,17 +1,20 @@
 "use client";
 
 // The home-page collection grid, wrapped so it can own multi-select
-// state. Without a selection it behaves exactly as before — cards are
-// links to the detail page. Tick a card (the checkbox appears on hover)
-// and a toolbar shows up with "Select all" and "Remove". Shift-click a
-// second card to select the whole range between it and the last one you
-// clicked.
+// state across all three view modes. Without a selection it behaves
+// exactly as before — cards/rows are links to the detail page. Tick one
+// (the checkbox appears on hover in the grids, always visible in the
+// list) and a toolbar shows up with "Select all" and "Remove".
+// Shift-click a second one to select the whole range between it and the
+// last one you clicked.
 
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import GameCard from "@/components/GameCard";
+import GameListRow from "@/components/GameListRow";
 import type { ScoreBand } from "@/lib/score-badge";
 import type { PlayStatus } from "@/lib/play-status";
+import type { ViewMode } from "@/lib/view-mode";
 
 export interface CollectionCard {
   id: string;
@@ -24,6 +27,8 @@ export interface CollectionCard {
   playStatus: string;
   format: string;
   trophies: { earned: number; total: number } | null;
+  hltbMainHours: number | null;
+  hltbCompletionistHours: number | null;
 }
 
 interface Prefs {
@@ -36,15 +41,19 @@ interface Prefs {
   dimStrength: number;
 }
 
-const GRID_CLASS =
+const LARGE_GRID_CLASS =
   "grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:[grid-template-columns:repeat(auto-fill,minmax(200px,1fr))]";
+const SMALL_GRID_CLASS =
+  "grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-6 lg:[grid-template-columns:repeat(auto-fill,minmax(120px,1fr))]";
 
 export default function CollectionGrid({
   games,
   prefs,
+  view,
 }: {
   games: CollectionCard[];
   prefs: Prefs;
+  view: ViewMode;
 }) {
   const router = useRouter();
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -168,34 +177,57 @@ export default function CollectionGrid({
         </div>
       )}
 
-      <div className={GRID_CLASS}>
-        {games.map((g, i) => (
-          <GameCard
-            key={g.id}
-            id={g.id}
-            title={g.title}
-            platform={g.platform}
-            coverUrl={g.coverUrl}
-            valueCibGbp={g.valueCibGbp}
-            valueLooseGbp={g.valueLooseGbp}
-            score={g.score}
-            scoreBadgeEnabled={prefs.scoreBadgeEnabled}
-            scoreBands={prefs.scoreBands}
-            playStatus={g.playStatus}
-            statusBadgeEnabled={prefs.statusBadgeEnabled}
-            statusColors={prefs.statusColors}
-            dimCompleted={prefs.dimCompleted}
-            dimPlayedPreviously={prefs.dimPlayedPreviously}
-            dimStrength={prefs.dimStrength}
-            format={g.format}
-            trophies={g.trophies}
-            selectable
-            selected={selected.has(g.id)}
-            selectionActive={selectionActive}
-            onToggleSelect={(shiftKey) => toggle(i, shiftKey)}
-          />
-        ))}
-      </div>
+      {view === "list" ? (
+        <div className="divide-y divide-ink-line overflow-hidden rounded-card border border-ink-line bg-ink-soft">
+          {games.map((g, i) => (
+            <GameListRow
+              key={g.id}
+              id={g.id}
+              title={g.title}
+              platform={g.platform}
+              coverUrl={g.coverUrl}
+              valueCibGbp={g.valueCibGbp}
+              valueLooseGbp={g.valueLooseGbp}
+              format={g.format}
+              trophies={g.trophies}
+              hltbMainHours={g.hltbMainHours}
+              hltbCompletionistHours={g.hltbCompletionistHours}
+              selected={selected.has(g.id)}
+              selectionActive={selectionActive}
+              onToggleSelect={(shiftKey) => toggle(i, shiftKey)}
+            />
+          ))}
+        </div>
+      ) : (
+        <div className={view === "small" ? SMALL_GRID_CLASS : LARGE_GRID_CLASS}>
+          {games.map((g, i) => (
+            <GameCard
+              key={g.id}
+              id={g.id}
+              title={g.title}
+              platform={g.platform}
+              coverUrl={g.coverUrl}
+              valueCibGbp={g.valueCibGbp}
+              valueLooseGbp={g.valueLooseGbp}
+              score={g.score}
+              scoreBadgeEnabled={prefs.scoreBadgeEnabled}
+              scoreBands={prefs.scoreBands}
+              playStatus={g.playStatus}
+              statusBadgeEnabled={prefs.statusBadgeEnabled}
+              statusColors={prefs.statusColors}
+              dimCompleted={prefs.dimCompleted}
+              dimPlayedPreviously={prefs.dimPlayedPreviously}
+              dimStrength={prefs.dimStrength}
+              format={g.format}
+              trophies={g.trophies}
+              selectable
+              selected={selected.has(g.id)}
+              selectionActive={selectionActive}
+              onToggleSelect={(shiftKey) => toggle(i, shiftKey)}
+            />
+          ))}
+        </div>
+      )}
     </>
   );
 }

@@ -14,7 +14,10 @@ account has its own completely separate collection.
 - **Collection grid** with cover art, per-cover badges: an IGDB score circle
   (colour-banded), a play-status dot, a physical/digital media icon, and the
   current value. Filter by platform, sort by name / score / value / date added /
-  release date / your rating / play status.
+  release date / your rating / play status. Three view modes — large grid,
+  small grid, or a list (cover, title, platform, value, trophy/achievement
+  count, HowLongToBeat stats) — kept in the URL (`?view=`) so it survives a
+  platform filter or a search.
 - **Play status** — Unplayed / In Progress / Completed / **Platinum Achieved**
   (with an animated silver trophy). Completed and platinum covers dim. Dot
   colours are yours to set.
@@ -195,6 +198,7 @@ lib/
   steam-achievements.ts      Steam achievements — any game, cross-platform
   free-games.ts gamerpower.ts epic-free.ts   Currently Free feed + its sources
   score-badge.ts play-status.ts media.ts   Badge / status / media helpers
+  view-mode.ts               Large grid / small grid / list — the ?view= values
   tenant.ts prefs.ts         Multi-user bootstrap + per-user preferences
   session.ts settings.ts     Current user / instance config
   prisma.ts                  Prisma client singleton

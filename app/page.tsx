@@ -6,8 +6,10 @@ import { getUserPrefs } from "@/lib/prefs";
 import { parseScoreBands } from "@/lib/score-badge";
 import { parseStatusColors, isPlayStatus } from "@/lib/play-status";
 import { sortGames, DEFAULT_SORT, isSortValue, type SortValue } from "@/lib/sort-games";
+import { DEFAULT_VIEW, isViewMode, type ViewMode } from "@/lib/view-mode";
 import CollectionGrid from "@/components/CollectionGrid";
 import SortSelect from "@/components/SortSelect";
+import ViewSelect from "@/components/ViewSelect";
 import FilterBar from "@/components/FilterBar";
 import Link from "next/link";
 
@@ -22,6 +24,7 @@ export default async function DashboardPage({
     platform?: string;
     status?: string;
     media?: string;
+    view?: string;
   };
 }) {
   const user = await getCurrentUser();
@@ -37,6 +40,7 @@ export default async function DashboardPage({
       ? searchParams.media
       : undefined;
   const sort: SortValue = isSortValue(searchParams.sort) ? searchParams.sort : DEFAULT_SORT;
+  const view: ViewMode = isViewMode(searchParams.view) ? searchParams.view : DEFAULT_VIEW;
   const filtered = !!(q || platform || status || media);
 
   const prefs = await getUserPrefs(user.id);
@@ -103,6 +107,7 @@ export default async function DashboardPage({
   if (platform) keep.platform = platform;
   if (status) keep.status = status;
   if (media) keep.media = media;
+  if (view !== DEFAULT_VIEW) keep.view = view;
 
   const totalValue = games.reduce((sum, g) => {
     if (g.format === "Digital") return sum;
@@ -130,6 +135,9 @@ export default async function DashboardPage({
             </Suspense>
             <Suspense fallback={null}>
               <SortSelect current={sort} />
+            </Suspense>
+            <Suspense fallback={null}>
+              <ViewSelect current={view} />
             </Suspense>
           </div>
           <form action="/" className="w-full sm:w-72">
@@ -176,6 +184,8 @@ export default async function DashboardPage({
             playStatus: g.playStatus,
             format: g.format,
             trophies: trophyCounts[g.id] ?? achievementCounts[g.id] ?? null,
+            hltbMainHours: g.hltbMainHours,
+            hltbCompletionistHours: g.hltbCompletionistHours,
           }))}
           prefs={{
             scoreBadgeEnabled: prefs.scoreBadgeEnabled,
@@ -186,6 +196,7 @@ export default async function DashboardPage({
             dimPlayedPreviously: prefs.dimPlayedPreviously,
             dimStrength: prefs.dimStrength,
           }}
+          view={view}
         />
       )}
     </div>
