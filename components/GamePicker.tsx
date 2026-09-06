@@ -16,6 +16,8 @@ interface PickerGame {
   publisher: string | null;
   rating: number | null;
   platforms: string[];
+  trailerYoutubeId: string | null;
+  screenshots: string[];
 }
 
 interface Hltb {
@@ -227,6 +229,35 @@ export default function GamePicker() {
           <p className="mt-3 text-xs text-mute">{hltbText}</p>
         </div>
       </div>
+
+      {game.trailerYoutubeId && (
+        <div className="mt-4 aspect-video w-full overflow-hidden rounded-card border border-ink-line bg-black">
+          <iframe
+            key={game.trailerYoutubeId}
+            className="h-full w-full"
+            src={`https://www.youtube-nocookie.com/embed/${game.trailerYoutubeId}`}
+            title={`${game.title} trailer`}
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+            allowFullScreen
+          />
+        </div>
+      )}
+
+      {game.screenshots.length > 0 && (
+        <div className="mt-4 flex gap-2 overflow-x-auto pb-1">
+          {game.screenshots.map((src) => (
+            <img
+              // Plain <img>: a variable-length gallery, and the host
+              // (images.igdb.com) already serves the covers.
+              key={src}
+              src={src}
+              alt=""
+              loading="lazy"
+              className="h-28 flex-shrink-0 rounded border border-ink-line object-cover"
+            />
+          ))}
+        </div>
+      )}
 
       <div className="mt-4 flex flex-wrap items-center gap-2">
         <button type="button" onClick={pick} className="btn-secondary text-sm">

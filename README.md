@@ -55,9 +55,12 @@ account has its own completely separate collection.
   can be games you already own; each still shows in the collection. Add from a
   game's own page or from the Game Picker.
 - **Game Picker** — rolls a random IGDB game you could play (one you don't own,
-  or own but haven't started), with its description, rating and — fetched
-  automatically — HowLongToBeat times. Re-pick until something sticks, then
-  wishlist it or drop it on the play list.
+  or own but haven't started), with its description, rating, trailer,
+  screenshots and — fetched automatically — HowLongToBeat times. The roll
+  counts the matching IGDB pool and picks a valid random offset into it, and
+  falls back to the whole released catalogue if a big collection keeps
+  excluding every hit. Re-pick until something sticks, then wishlist it or drop
+  it on the play list.
 - **Release Calendar** — upcoming games from IGDB, grouped by date, filtered to
   your platforms. Wishlist straight from it, choosing the platform.
 - **Discover** and **Indie Discover** — recommendations aggregated from IGDB's

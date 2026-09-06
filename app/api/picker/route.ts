@@ -35,9 +35,13 @@ export async function GET() {
 
     const { getRandomGames } = await import("@/lib/igdb");
 
+    // Rated games first; if a big collection keeps excluding every hit,
+    // fall back to the whole released-with-a-cover catalogue.
+    const passes: number[] = [5, 5, 0];
     let picked: PickerCandidate | null = null;
-    for (let attempt = 0; attempt < 5 && !picked; attempt++) {
-      const batch = await getRandomGames();
+    for (const minRatingCount of passes) {
+      if (picked) break;
+      const batch = await getRandomGames(minRatingCount);
       const eligible = batch.filter((c) => !exclude.has(c.igdbId));
       if (eligible.length > 0) {
         picked = eligible[Math.floor(Math.random() * eligible.length)];

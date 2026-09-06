@@ -210,42 +210,65 @@ export interface PickerCandidate {
   publisher: string | null;
   rating: number | null; // critic score if there is one, else the combined rating
   platforms: string[];
+  trailerYoutubeId: string | null;
+  screenshots: string[]; // full image URLs
 }
 
-// A batch of well-rated, already-released main games for the Game Picker.
-// IGDB has no random endpoint, so variety comes from a random sort field
-// + direction + offset each call; the route picks one row and filters out
-// anything already in the collection.
-export async function getRandomGames(): Promise<PickerCandidate[]> {
+// One page of released main games for the Game Picker, filtered only to
+// things with a cover. `minRatingCount` biases toward games people have
+// actually rated; the route drops it to 0 as a fallback when a big
+// collection keeps excluding every hit.
+//
+// IGDB has no random endpoint, so: count the matching pool, pick a valid
+// random offset within it (capped — IGDB pagination gets flaky past a
+// few thousand), and rotate the sort field/direction each call.
+export async function getRandomGames(minRatingCount = 5): Promise<PickerCandidate[]> {
+  const nowSec = Math.floor(Date.now() / 1000);
+  const where =
+    `where category = 0 & version_parent = null & cover != null` +
+    ` & first_release_date != null & first_release_date < ${nowSec}` +
+    (minRatingCount > 0 ? ` & total_rating_count >= ${minRatingCount}` : "");
+
+  const LIMIT = 50;
+  const OFFSET_CAP = 4500;
+
+  let total = 0;
+  try {
+    const c: any = await withTimeout(
+      igdbQuery("games/count", `${where};`),
+      10_000,
+      "IGDB game picker count"
+    );
+    total = Number(c?.count) || 0;
+  } catch {
+    // Count is just for a good offset — press on with a modest range.
+  }
+
+  const maxOffset = total > 0 ? Math.min(OFFSET_CAP, Math.max(0, total - LIMIT)) : 600;
+  const offset = Math.floor(Math.random() * (maxOffset + 1));
+
   const sortFields = [
     "total_rating",
-    "total_rating_count",
+    "rating",
+    "aggregated_rating",
     "first_release_date",
     "hypes",
     "follows",
-    "rating",
   ];
   const sort = sortFields[Math.floor(Math.random() * sortFields.length)];
   const dir = Math.random() < 0.5 ? "asc" : "desc";
-  const offset = Math.floor(Math.random() * 800);
-  const nowSec = Math.floor(Date.now() / 1000);
 
   const results: any[] = await withTimeout(
     igdbQuery(
       "games",
-      `where category = 0
-         & version_parent = null
-         & cover != null
-         & total_rating_count > 8
-         & first_release_date != null
-         & first_release_date < ${nowSec}
-         & themes != (42);
+      `${where};
        fields name, cover.image_id, first_release_date, summary, genres.name,
          aggregated_rating, total_rating, rating, platforms.name,
          involved_companies.company.name, involved_companies.developer,
-         involved_companies.publisher;
+         involved_companies.publisher,
+         videos.video_id, videos.name, screenshots.image_id;
        sort ${sort} ${dir};
-       limit 25;
+       limit ${LIMIT};
        offset ${offset};`
     ),
     20_000,
@@ -257,6 +280,9 @@ export async function getRandomGames(): Promise<PickerCandidate[]> {
     .map((g) => {
       const companies = g.involved_companies ?? [];
       const rawRating = g.aggregated_rating ?? g.total_rating ?? g.rating ?? null;
+      const videos: any[] = g.videos ?? [];
+      const trailer =
+        videos.find((v) => /trailer/i.test(String(v?.name ?? ""))) ?? videos[0];
       return {
         igdbId: g.id,
         title: g.name,
@@ -270,6 +296,15 @@ export async function getRandomGames(): Promise<PickerCandidate[]> {
         publisher: companies.find((c: any) => c.publisher)?.company?.name ?? null,
         rating: typeof rawRating === "number" ? Math.round(rawRating) : null,
         platforms: (g.platforms ?? []).map((p: any) => p.name).filter(Boolean),
+        trailerYoutubeId: trailer?.video_id ? String(trailer.video_id) : null,
+        screenshots: (g.screenshots ?? [])
+          .map((s: any) =>
+            s?.image_id
+              ? `https://images.igdb.com/igdb/image/upload/t_screenshot_big/${s.image_id}.jpg`
+              : null
+          )
+          .filter((u: string | null): u is string => !!u)
+          .slice(0, 6),
       };
     });
 }
