@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/session";
+import type { PickerCandidate } from "@/lib/igdb";
 
 export const dynamic = "force-dynamic";
 
@@ -34,7 +35,7 @@ export async function GET() {
 
     const { getRandomGames } = await import("@/lib/igdb");
 
-    let picked: Awaited<ReturnType<typeof getRandomGames>>[number] | null = null;
+    let picked: PickerCandidate | null = null;
     for (let attempt = 0; attempt < 5 && !picked; attempt++) {
       const batch = await getRandomGames();
       const eligible = batch.filter((c) => !exclude.has(c.igdbId));

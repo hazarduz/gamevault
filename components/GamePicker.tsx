@@ -173,6 +173,16 @@ export default function GamePicker() {
   const year = game.releaseDate ? new Date(game.releaseDate).getUTCFullYear() : null;
   const owned = !!ownedGameId;
 
+  const hltbText = (() => {
+    if (hltbLoading) return "HowLongToBeat: loading times…";
+    if (!hltb) return "HowLongToBeat: no data";
+    const parts: string[] = [];
+    if (hltb.mainHours != null) parts.push(`Main ${hltb.mainHours}h`);
+    if (hltb.mainExtraHours != null) parts.push(`Main + extra ${hltb.mainExtraHours}h`);
+    if (hltb.completionistHours != null) parts.push(`Completionist ${hltb.completionistHours}h`);
+    return parts.length ? `HowLongToBeat: ${parts.join(" · ")}` : "HowLongToBeat: no data";
+  })();
+
   return (
     <div className="mt-6">
       <div className="flex flex-col gap-5 rounded-card border border-ink-line bg-ink-soft p-4 sm:flex-row">
@@ -214,20 +224,7 @@ export default function GamePicker() {
             </p>
           )}
 
-          <p className="mt-3 text-xs text-mute">
-            {hltbLoading ? (
-              "HowLongToBeat: loading times…"
-            ) : hltb && (hltb.mainHours || hltb.mainExtraHours || hltb.completionistHours) ? (
-              <>
-                HowLongToBeat:{" "}
-                {hltb.mainHours != null && <>Main {hltb.mainHours}h</>}
-                {hltb.mainExtraHours != null && <> · Main + extra {hltb.mainExtraHours}h</>}
-                {hltb.completionistHours != null && <> · Completionist {hltb.completionistHours}h</>}
-              </>
-            ) : (
-              "HowLongToBeat: no data"
-            )}
-          </p>
+          <p className="mt-3 text-xs text-mute">{hltbText}</p>
         </div>
       </div>
 
