@@ -5,10 +5,11 @@ import { formatForPlatform } from "@/lib/platforms";
 
 export const dynamic = "force-dynamic";
 
-// POST /api/wishlist { igdbId, platform, wishlist? }
+// POST /api/wishlist { igdbId, platform, wishlist?, playlist? }
 // Creates a Game row from IGDB detail. wishlist defaults to true; the
-// Discover page passes wishlist:false for "Add to collection". Used by
-// the Calendar and Discover buttons.
+// Discover page passes wishlist:false for "Add to collection". The Game
+// Picker passes playlist:true to also drop it on the play list. Used by
+// the Calendar, Discover and Game Picker buttons.
 export async function POST(req: NextRequest) {
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: "Not signed in." }, { status: 401 });
@@ -22,7 +23,8 @@ export async function POST(req: NextRequest) {
 
   const igdbId = Number(body?.igdbId);
   const platform = typeof body?.platform === "string" ? body.platform.trim() : "";
-  const wishlist = body?.wishlist !== false; // default true
+  const playlist = body?.playlist === true;
+  const wishlist = playlist ? true : body?.wishlist !== false; // default true; a play-list add is always a "want" too
   if (!Number.isInteger(igdbId) || igdbId <= 0 || !platform) {
     return NextResponse.json(
       { error: "igdbId (number) and platform (string) are required" },
@@ -55,6 +57,7 @@ export async function POST(req: NextRequest) {
         platform,
         format: formatForPlatform(platform),
         wishlist,
+        playlist,
         igdbId: detail.igdbId,
         coverUrl: detail.coverUrl,
         releaseDate: detail.releaseDate ? new Date(detail.releaseDate) : null,
@@ -67,7 +70,7 @@ export async function POST(req: NextRequest) {
     });
 
     return NextResponse.json(
-      { id: game.id, title: game.title, wishlist: game.wishlist },
+      { id: game.id, title: game.title, wishlist: game.wishlist, playlist: game.playlist },
       { status: 201 }
     );
   } catch (e: any) {

@@ -10,13 +10,19 @@ interface PlatformCount {
   count: number;
 }
 
-// Nav is alphabetical: Collection, Currently Free, Discover, Indie
-// Discover, Platforms, Release Calendar, Settings, Wishlist. "Platforms"
-// is a collapsible group that filters the home grid via ?platform=.
+// Nav is alphabetical: Collection, Currently Free, Discover, Platforms,
+// Play List, Settings, Wishlist. "Discover" and "Platforms" are
+// collapsible groups — Discover holds the discovery-ish pages, Platforms
+// filters the home grid via ?platform=.
+const DISCOVER_PATHS = ["/discover", "/indie", "/picker", "/calendar"];
+
 export default function Sidebar() {
   const pathname = usePathname();
   const [platforms, setPlatforms] = useState<PlatformCount[]>([]);
   const [platformsOpen, setPlatformsOpen] = useState(false);
+  const [discoverOpen, setDiscoverOpen] = useState(() =>
+    DISCOVER_PATHS.some((p) => pathname === p || pathname.startsWith(p + "/"))
+  );
   const [mobileOpen, setMobileOpen] = useState(false);
 
   useEffect(() => {
@@ -37,8 +43,23 @@ export default function Sidebar() {
 
       <NavLink href="/free" label="Currently Free" pathname={pathname} />
 
-      <NavLink href="/discover" label="Discover" pathname={pathname} exact />
-      <NavLink href="/indie" label="Indie Discover" pathname={pathname} />
+      {/* Discover — collapsible group of the discovery-ish pages */}
+      <button
+        type="button"
+        onClick={() => setDiscoverOpen((v) => !v)}
+        className="flex items-center justify-between rounded-md px-3 py-2 text-left text-mute transition hover:bg-ink-soft hover:text-parchment"
+      >
+        <span>Discover</span>
+        <span className="text-xs">{discoverOpen ? "▾" : "▸"}</span>
+      </button>
+      {discoverOpen && (
+        <div className="mb-1 ml-2 flex flex-col gap-0.5 border-l border-ink-line pl-2">
+          <SubLink href="/discover" label="Discover" pathname={pathname} exact />
+          <SubLink href="/picker" label="Game Picker" pathname={pathname} />
+          <SubLink href="/indie" label="Indie Discover" pathname={pathname} />
+          <SubLink href="/calendar" label="Release Calendar" pathname={pathname} />
+        </div>
+      )}
 
       {/* Platforms — alphabetical slot, collapsible filter list */}
       <button
@@ -67,7 +88,7 @@ export default function Sidebar() {
         </div>
       )}
 
-      <NavLink href="/calendar" label="Release Calendar" pathname={pathname} />
+      <NavLink href="/playlist" label="Play List" pathname={pathname} />
       <NavLink href="/settings" label="Settings" pathname={pathname} />
       <NavLink href="/wishlist" label="Wishlist" pathname={pathname} />
     </nav>
@@ -135,6 +156,34 @@ function NavLink({
     <Link
       href={href}
       className={`rounded-md px-3 py-2 transition ${
+        active
+          ? "bg-ink-soft font-medium text-parchment"
+          : "text-mute hover:bg-ink-soft hover:text-parchment"
+      }`}
+    >
+      {label}
+    </Link>
+  );
+}
+
+// A child link inside a collapsible group (Discover), matching the
+// Platforms sub-list styling.
+function SubLink({
+  href,
+  label,
+  pathname,
+  exact,
+}: {
+  href: string;
+  label: string;
+  pathname: string;
+  exact?: boolean;
+}) {
+  const active = exact ? pathname === href : pathname.startsWith(href);
+  return (
+    <Link
+      href={href}
+      className={`rounded px-2 py-1 text-xs transition ${
         active
           ? "bg-ink-soft font-medium text-parchment"
           : "text-mute hover:bg-ink-soft hover:text-parchment"

@@ -32,8 +32,9 @@ interface GameCardProps {
   selected?: boolean;
   selectionActive?: boolean; // any card selected — card click toggles instead of navigating
   onToggleSelect?: (shiftKey: boolean) => void;
-  // Wishlist view
+  // Wishlist / play-list view (minimal card + a corner badge)
   wishlist?: boolean;
+  playlist?: boolean;
   releaseDate?: string | null;
 }
 
@@ -60,17 +61,19 @@ export default function GameCard({
   selectionActive = false,
   onToggleSelect,
   wishlist = false,
+  playlist = false,
   releaseDate = null,
 }: GameCardProps) {
+  const minimal = wishlist || playlist;
   const value = format === "Digital" ? null : valueCibGbp ?? valueLooseGbp;
-  const band = !wishlist && scoreBadgeEnabled ? pickScoreBand(score, scoreBands) : null;
+  const band = !minimal && scoreBadgeEnabled ? pickScoreBand(score, scoreBands) : null;
   const dimmed =
-    !wishlist &&
+    !minimal &&
     ((dimCompleted && (playStatus === "completed" || playStatus === "platinum")) ||
       (dimPlayedPreviously && playStatus === "played_previously"));
 
   const releaseLabel = (() => {
-    if (!wishlist) return null;
+    if (!minimal) return null;
     if (!releaseDate) return "Release TBA";
     const d = new Date(releaseDate);
     if (Number.isNaN(d.getTime())) return "Release TBA";
@@ -162,6 +165,11 @@ export default function GameCard({
             Wishlist
           </span>
         )}
+        {playlist && !wishlist && (
+          <span className="absolute right-2 top-2 rounded-full bg-teal/90 px-2 py-0.5 font-display text-[10px] font-bold uppercase tracking-wide text-ink">
+            Play List
+          </span>
+        )}
 
         {band && score !== null && (
           <span
@@ -173,13 +181,13 @@ export default function GameCard({
           </span>
         )}
 
-        {!wishlist && statusBadgeEnabled && statusColors && (
+        {!minimal && statusBadgeEnabled && statusColors && (
           <div className="absolute bottom-2 left-2">
             <StatusMark status={playStatus} colors={statusColors} idSuffix={id} />
           </div>
         )}
 
-        {!wishlist && (
+        {!minimal && (
           <div className="absolute bottom-2 right-2">
             <MediaIcon platform={platform} format={format} />
           </div>
@@ -189,8 +197,10 @@ export default function GameCard({
         <h3 className="line-clamp-2 font-display text-sm font-medium leading-snug text-parchment">
           {title}
         </h3>
-        {wishlist ? (
-          <p className="mt-auto pt-2 text-xs text-mute">{releaseLabel}</p>
+        {minimal ? (
+          <p className="mt-auto pt-2 text-xs text-mute">
+            {playlist && !wishlist ? platform : releaseLabel}
+          </p>
         ) : (
           (value !== null || trophies) && (
             <div className="mt-auto flex items-center justify-between gap-2 pt-2">

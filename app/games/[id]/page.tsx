@@ -55,6 +55,7 @@ interface Game {
   format: string;
   playStatus: string;
   wishlist: boolean;
+  playlist: boolean;
   notes: string | null;
   coverUrl: string | null;
   releaseDate: string | null;
@@ -146,7 +147,9 @@ export default function GameDetailPage({ params }: { params: { id: string } }) {
       body: JSON.stringify(fields),
     });
     const updated = await res.json();
-    setGame(updated);
+    // The PATCH response is the bare game row — merge so the trophies /
+    // achievements arrays loaded by the initial GET survive an edit.
+    setGame((prev) => (prev ? { ...prev, ...updated } : updated));
     setSaving(false);
   }
 
@@ -351,6 +354,12 @@ export default function GameDetailPage({ params }: { params: { id: string } }) {
           </button>
         )}
         <button
+          onClick={() => patch({ playlist: !game.playlist })}
+          className="btn-secondary mt-4 w-full"
+        >
+          {game.playlist ? "Remove from play list" : "Add to play list"}
+        </button>
+        <button
           onClick={handleDelete}
           className="btn-secondary mt-4 w-full text-red-400"
         >
@@ -365,6 +374,11 @@ export default function GameDetailPage({ params }: { params: { id: string } }) {
           {game.wishlist && (
             <span className="rounded-full bg-amber/90 px-2 py-0.5 font-display text-[10px] font-bold uppercase tracking-wide text-ink">
               Wishlist
+            </span>
+          )}
+          {game.playlist && (
+            <span className="rounded-full bg-teal/90 px-2 py-0.5 font-display text-[10px] font-bold uppercase tracking-wide text-ink">
+              Play List
             </span>
           )}
         </div>

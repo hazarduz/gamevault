@@ -199,6 +199,81 @@ function withTimeout<T>(work: Promise<T>, ms: number, label: string): Promise<T>
   ]);
 }
 
+export interface PickerCandidate {
+  igdbId: number;
+  title: string;
+  coverUrl: string | null;
+  summary: string | null;
+  genres: string[];
+  releaseDate: string | null;
+  developer: string | null;
+  publisher: string | null;
+  rating: number | null; // critic score if there is one, else the combined rating
+  platforms: string[];
+}
+
+// A batch of well-rated, already-released main games for the Game Picker.
+// IGDB has no random endpoint, so variety comes from a random sort field
+// + direction + offset each call; the route picks one row and filters out
+// anything already in the collection.
+export async function getRandomGames(): Promise<PickerCandidate[]> {
+  const sortFields = [
+    "total_rating",
+    "total_rating_count",
+    "first_release_date",
+    "hypes",
+    "follows",
+    "rating",
+  ];
+  const sort = sortFields[Math.floor(Math.random() * sortFields.length)];
+  const dir = Math.random() < 0.5 ? "asc" : "desc";
+  const offset = Math.floor(Math.random() * 800);
+  const nowSec = Math.floor(Date.now() / 1000);
+
+  const results: any[] = await withTimeout(
+    igdbQuery(
+      "games",
+      `where category = 0
+         & version_parent = null
+         & cover != null
+         & total_rating_count > 8
+         & first_release_date != null
+         & first_release_date < ${nowSec}
+         & themes != (42);
+       fields name, cover.image_id, first_release_date, summary, genres.name,
+         aggregated_rating, total_rating, rating, platforms.name,
+         involved_companies.company.name, involved_companies.developer,
+         involved_companies.publisher;
+       sort ${sort} ${dir};
+       limit 25;
+       offset ${offset};`
+    ),
+    20_000,
+    "IGDB game picker"
+  );
+
+  return results
+    .filter((g) => g?.id && g?.name)
+    .map((g) => {
+      const companies = g.involved_companies ?? [];
+      const rawRating = g.aggregated_rating ?? g.total_rating ?? g.rating ?? null;
+      return {
+        igdbId: g.id,
+        title: g.name,
+        coverUrl: coverUrl(g.cover?.image_id),
+        summary: g.summary ?? null,
+        genres: (g.genres ?? []).map((x: any) => x.name).filter(Boolean),
+        releaseDate: g.first_release_date
+          ? new Date(g.first_release_date * 1000).toISOString()
+          : null,
+        developer: companies.find((c: any) => c.developer)?.company?.name ?? null,
+        publisher: companies.find((c: any) => c.publisher)?.company?.name ?? null,
+        rating: typeof rawRating === "number" ? Math.round(rawRating) : null,
+        platforms: (g.platforms ?? []).map((p: any) => p.name).filter(Boolean),
+      };
+    });
+}
+
 export interface UpcomingRelease {
   igdbId: number;
   title: string;

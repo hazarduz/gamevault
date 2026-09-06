@@ -51,12 +51,20 @@ account has its own completely separate collection.
   collection or wishlist.
 - **Wishlist** — games you want, kept off the main grid. "Move to collection"
   when you buy one.
+- **Play List** — a "get round to playing this" list. Unlike the wishlist these
+  can be games you already own; each still shows in the collection. Add from a
+  game's own page or from the Game Picker.
+- **Game Picker** — rolls a random IGDB game you could play (one you don't own,
+  or own but haven't started), with its description, rating and — fetched
+  automatically — HowLongToBeat times. Re-pick until something sticks, then
+  wishlist it or drop it on the play list.
 - **Release Calendar** — upcoming games from IGDB, grouped by date, filtered to
   your platforms. Wishlist straight from it, choosing the platform.
 - **Discover** and **Indie Discover** — recommendations aggregated from IGDB's
   "similar games" across your whole collection, ranked by recurrence. Indie
   Discover requires IGDB's Indie genre and drops the big publishers. A **Rotate**
-  button cycles fresh batches.
+  button cycles fresh batches. The sidebar groups Discover, Indie Discover, Game
+  Picker and the Release Calendar under one collapsible "Discover".
 - **Users & invites** — the admin creates a username and gets a one-time invite
   link; the new person sets their own password and lands in an empty collection.
 
@@ -169,6 +177,8 @@ app/
   page.tsx                   Collection grid (per-user, multi-select + bulk remove)
   free/page.tsx              Currently Free — free-to-keep games, cached feed
   wishlist/page.tsx          Wishlisted games
+  playlist/page.tsx          "To play" list — owned or not
+  picker/page.tsx            Game Picker — one random game to play
   calendar/page.tsx          Upcoming releases (IGDB)
   discover/ · indie/         Recommendations from IGDB similar_games
   settings/page.tsx          Personal prefs + (admin) site config & users
@@ -178,6 +188,7 @@ app/
   api/games/                 Per-user CRUD (ownership-checked)
   api/igdb/search/           IGDB search + detail
   api/enrich/price · hltb/   PriceCharting / HowLongToBeat
+  api/picker/ · api/hltb/     Game Picker — random game / search-only HLTB
   api/psn/scan · apply/      PSN title discovery / link + trophy sync
   api/psn/sync-all/          Re-sync every already-linked PSN game
   api/psn/search-titles/     Search your PSN library, for re-matching

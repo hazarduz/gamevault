@@ -33,6 +33,7 @@ model Game {
   personalRating Int?             // 1-10, your own score
   playStatus  String   @default("unplayed") // "unplayed" | "in_progress" | "completed" | "platinum"
   wishlist    Boolean  @default(false)      // true = wanted, hidden from the home grid
+  playlist    Boolean  @default(false)      // true = on the "to play" list (shown on /playlist; may also be owned)
   dateAdded   DateTime @default(now())
   datePurchased DateTime?
   purchasePriceGbp Decimal?       @db.Decimal(10, 2)
@@ -101,6 +102,7 @@ model Game {
   @@index([title])
   @@index([platform])
   @@index([wishlist])
+  @@index([playlist])
   @@index([userId])
 }
 
