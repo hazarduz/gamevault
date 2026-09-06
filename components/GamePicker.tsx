@@ -39,7 +39,7 @@ export default function GamePicker() {
   const [hltb, setHltb] = useState<Hltb | null>(null);
   const [hltbLoading, setHltbLoading] = useState(false);
 
-  const [platform, setPlatform] = useState(PLATFORM_OPTIONS[0]);
+  const [platform, setPlatform] = useState<string>(PLATFORM_OPTIONS[0]);
   const [busy, setBusy] = useState<"wishlist" | "playlist" | null>(null);
   const [done, setDone] = useState<"wishlist" | "playlist" | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
