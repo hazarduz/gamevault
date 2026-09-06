@@ -56,11 +56,12 @@ account has its own completely separate collection.
   game's own page or from the Game Picker.
 - **Game Picker** — rolls a random IGDB game you could play (one you don't own,
   or own but haven't started), with its description, rating, trailer,
-  screenshots and — fetched automatically — HowLongToBeat times. The roll
-  counts the matching IGDB pool and picks a valid random offset into it, and
-  falls back to the whole released catalogue if a big collection keeps
-  excluding every hit. Re-pick until something sticks, then wishlist it or drop
-  it on the play list.
+  screenshots and — fetched automatically — HowLongToBeat times. Optional
+  dropdowns filter by platform, genre, and playtime band (matched against
+  HLTB's main-story time). The roll's IGDB query is deliberately loose (any
+  game with a cover and a release date) so it basically always finds
+  something; `GET /api/picker?debug=1` dumps the query diagnostics. Re-pick
+  until something sticks, then wishlist it or drop it on the play list.
 - **Release Calendar** — upcoming games from IGDB, grouped by date, filtered to
   your platforms. Wishlist straight from it, choosing the platform.
 - **Discover** and **Indie Discover** — recommendations aggregated from IGDB's
@@ -213,6 +214,7 @@ lib/
   free-games.ts gamerpower.ts epic-free.ts   Currently Free feed + its sources
   score-badge.ts play-status.ts media.ts   Badge / status / media helpers
   view-mode.ts               Large grid / small grid / list — the ?view= values
+  picker-filters.ts          Game Picker platform / genre / length dropdown lists
   tenant.ts prefs.ts         Multi-user bootstrap + per-user preferences
   session.ts settings.ts     Current user / instance config
   prisma.ts                  Prisma client singleton

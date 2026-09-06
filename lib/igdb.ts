@@ -214,20 +214,33 @@ export interface PickerCandidate {
   screenshots: string[]; // full image URLs
 }
 
-// One page of released main games for the Game Picker, filtered only to
-// things with a cover. `minRatingCount` biases toward games people have
-// actually rated; the route drops it to 0 as a fallback when a big
-// collection keeps excluding every hit.
-//
-// IGDB has no random endpoint, so: count the matching pool, pick a valid
-// random offset within it (capped — IGDB pagination gets flaky past a
-// few thousand), and rotate the sort field/direction each call.
-export async function getRandomGames(minRatingCount = 5): Promise<PickerCandidate[]> {
-  const nowSec = Math.floor(Date.now() / 1000);
-  const where =
-    `where category = 0 & version_parent = null & cover != null` +
-    ` & first_release_date != null & first_release_date < ${nowSec}` +
-    (minRatingCount > 0 ? ` & total_rating_count >= ${minRatingCount}` : "");
+export interface PickerFilters {
+  platformId?: number | null;
+  genreId?: number | null;
+}
+
+export interface RandomGamesResult {
+  games: PickerCandidate[];
+  debug: { where: string; sort: string; total: number; offset: number; returned: number };
+}
+
+// A page of random-ish games for the Game Picker. Deliberately minimal
+// filtering — just "has cover art" plus whatever platform/genre the user
+// picked — so the pool stays enormous and the roll basically always
+// finds something. IGDB has no random endpoint, so: count the matching
+// pool, pick a valid random offset inside it (capped, IGDB pagination
+// gets flaky past a few thousand), rotate the sort each call.
+export async function getRandomGames(
+  filters: PickerFilters = {}
+): Promise<RandomGamesResult> {
+  // Deliberately loose — no rating floor, no clock-dependent date
+  // comparison (a wrong server clock was almost certainly why the old
+  // roll came up empty). "Has a cover" + "has a release date" is enough
+  // to weed out blank/duplicate entries.
+  const clauses = ["cover != null", "first_release_date != null"];
+  if (filters.platformId) clauses.push(`platforms = (${Math.trunc(filters.platformId)})`);
+  if (filters.genreId) clauses.push(`genres = (${Math.trunc(filters.genreId)})`);
+  const where = `where ${clauses.join(" & ")}`;
 
   const LIMIT = 50;
   const OFFSET_CAP = 4500;
@@ -241,10 +254,11 @@ export async function getRandomGames(minRatingCount = 5): Promise<PickerCandidat
     );
     total = Number(c?.count) || 0;
   } catch {
-    // Count is just for a good offset — press on with a modest range.
+    // Count is only used to size the offset — press on with a modest range.
   }
 
-  const maxOffset = total > 0 ? Math.min(OFFSET_CAP, Math.max(0, total - LIMIT)) : 600;
+  const maxOffset =
+    total > 0 ? Math.min(OFFSET_CAP, Math.max(0, total - LIMIT)) : 2000;
   const offset = Math.floor(Math.random() * (maxOffset + 1));
 
   const sortFields = [
@@ -254,6 +268,7 @@ export async function getRandomGames(minRatingCount = 5): Promise<PickerCandidat
     "first_release_date",
     "hypes",
     "follows",
+    "id",
   ];
   const sort = sortFields[Math.floor(Math.random() * sortFields.length)];
   const dir = Math.random() < 0.5 ? "asc" : "desc";
@@ -275,7 +290,7 @@ export async function getRandomGames(minRatingCount = 5): Promise<PickerCandidat
     "IGDB game picker"
   );
 
-  return results
+  const games = results
     .filter((g) => g?.id && g?.name)
     .map((g) => {
       const companies = g.involved_companies ?? [];
@@ -307,6 +322,10 @@ export async function getRandomGames(minRatingCount = 5): Promise<PickerCandidat
           .slice(0, 6),
       };
     });
+
+  const debug = { where, sort: `${sort} ${dir}`, total, offset, returned: results.length };
+  console.error("[picker]", JSON.stringify(debug), "-> usable:", games.length);
+  return { games, debug };
 }
 
 export interface UpcomingRelease {
