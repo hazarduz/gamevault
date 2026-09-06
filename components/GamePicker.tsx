@@ -3,8 +3,13 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { PLATFORM_OPTIONS, pickPreferredPlatform } from "@/lib/platforms";
-import { PICKER_PLATFORMS, PICKER_GENRES, PICKER_LENGTHS } from "@/lib/picker-filters";
+import { pickPreferredPlatform } from "@/lib/platforms";
+import {
+  PICKER_PLATFORMS,
+  PICKER_ADD_PLATFORMS,
+  PICKER_GENRES,
+  PICKER_LENGTHS,
+} from "@/lib/picker-filters";
 
 interface PickerGame {
   igdbId: number;
@@ -28,8 +33,12 @@ interface Hltb {
 }
 
 function defaultPlatform(platforms: string[]): string {
-  const p = pickPreferredPlatform(platforms);
-  return (PLATFORM_OPTIONS as readonly string[]).includes(p) ? p : PLATFORM_OPTIONS[0];
+  const p = pickPreferredPlatform(platforms).toLowerCase();
+  return (
+    PICKER_ADD_PLATFORMS.find(
+      (opt) => p === opt.toLowerCase() || p.includes(opt.toLowerCase())
+    ) ?? PICKER_ADD_PLATFORMS[0]
+  );
 }
 
 export default function GamePicker() {
@@ -47,7 +56,7 @@ export default function GamePicker() {
   const [filterGenre, setFilterGenre] = useState("");
   const [filterLength, setFilterLength] = useState("");
 
-  const [addPlatform, setAddPlatform] = useState<string>(PLATFORM_OPTIONS[0]);
+  const [addPlatform, setAddPlatform] = useState<string>(PICKER_ADD_PLATFORMS[0]);
   const [busy, setBusy] = useState<"wishlist" | "playlist" | null>(null);
   const [done, setDone] = useState<"wishlist" | "playlist" | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
@@ -271,11 +280,11 @@ export default function GamePicker() {
                   <label className="text-xs text-mute">
                     Add as{" "}
                     <select
-                      className="field ml-1 w-40 text-xs"
+                      className="field ml-1 w-44 text-xs"
                       value={addPlatform}
                       onChange={(e) => setAddPlatform(e.target.value)}
                     >
-                      {PLATFORM_OPTIONS.map((p) => (
+                      {PICKER_ADD_PLATFORMS.map((p) => (
                         <option key={p} value={p}>
                           {p}
                         </option>

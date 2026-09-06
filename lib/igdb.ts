@@ -5,6 +5,7 @@
 // Docs: https://api-docs.igdb.com/
 
 import { getSettings, getTwitchCredentials } from "@/lib/settings";
+import { PICKER_PLATFORMS } from "@/lib/picker-filters";
 
 let cachedToken: { token: string; expiresAt: number } | null = null;
 
@@ -238,7 +239,15 @@ export async function getRandomGames(
   // roll came up empty). "Has a cover" + "has a release date" is enough
   // to weed out blank/duplicate entries.
   const clauses = ["cover != null", "first_release_date != null"];
-  if (filters.platformId) clauses.push(`platforms = (${Math.trunc(filters.platformId)})`);
+  // Only ever roll games on the modern platforms the picker offers. A
+  // specific platform filter narrows to just that one; with none set we
+  // still restrict to the seven, never "anything IGDB has".
+  const pickerPlatformIds = PICKER_PLATFORMS.map((p) => p.id).join(",");
+  clauses.push(
+    filters.platformId
+      ? `platforms = (${Math.trunc(filters.platformId)})`
+      : `platforms = (${pickerPlatformIds})`
+  );
   if (filters.genreId) clauses.push(`genres = (${Math.trunc(filters.genreId)})`);
   const where = `where ${clauses.join(" & ")}`;
 

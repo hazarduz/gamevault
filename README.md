@@ -58,10 +58,13 @@ account has its own completely separate collection.
   or own but haven't started), with its description, rating, trailer,
   screenshots and — fetched automatically — HowLongToBeat times. Optional
   dropdowns filter by platform, genre, and playtime band (matched against
-  HLTB's main-story time). The roll's IGDB query is deliberately loose (any
-  game with a cover and a release date) so it basically always finds
-  something; `GET /api/picker?debug=1` dumps the query diagnostics. Re-pick
-  until something sticks, then wishlist it or drop it on the play list.
+  HLTB's main-story time). The roll only ever returns games on the seven
+  modern platforms the picker offers (PC, PS4/PS5, Xbox One / Series,
+  Switch / Switch 2) — otherwise its IGDB query is deliberately loose (any
+  such game with a cover and a release date) so it basically always finds
+  something; `GET /api/picker?debug=1` dumps the query diagnostics. The
+  "Add as" dropdown offers that same platform set. Re-pick until something
+  sticks, then wishlist it or drop it on the play list.
 - **Release Calendar** — upcoming games from IGDB, grouped by date, filtered to
   your platforms. Wishlist straight from it, choosing the platform.
 - **Discover** and **Indie Discover** — recommendations aggregated from IGDB's

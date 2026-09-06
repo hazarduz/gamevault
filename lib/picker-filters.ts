@@ -12,6 +12,10 @@ export const PICKER_PLATFORMS = [
   { id: 508, label: "Nintendo Switch 2" },
 ] as const;
 
+// The "Add as" dropdown on the Game Picker offers exactly the same set
+// of platforms as the platform filter, in the same order.
+export const PICKER_ADD_PLATFORMS: string[] = PICKER_PLATFORMS.map((p) => p.label);
+
 export const PICKER_GENRES = [
   { id: 31, label: "Adventure" },
   { id: 33, label: "Arcade" },
