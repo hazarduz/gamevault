@@ -238,7 +238,15 @@ export async function getRandomGames(
   // comparison (a wrong server clock was almost certainly why the old
   // roll came up empty). "Has a cover" + "has a release date" is enough
   // to weed out blank/duplicate entries.
-  const clauses = ["cover != null", "first_release_date != null"];
+  // Fixed lower bound (2018-01-01 UTC, in seconds) — a constant, not a
+  // clock-relative comparison, so a wrong server clock can't empty the
+  // roll the way `first_release_date < now` once did.
+  const RELEASED_AFTER = 1514764800;
+  const clauses = [
+    "cover != null",
+    "first_release_date != null",
+    `first_release_date >= ${RELEASED_AFTER}`,
+  ];
   // Only ever roll games on the modern platforms the picker offers. A
   // specific platform filter narrows to just that one; with none set we
   // still restrict to the seven, never "anything IGDB has".
