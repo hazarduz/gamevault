@@ -9,9 +9,9 @@ export default async function GamePickerPage() {
   if (!user) redirect("/login");
 
   return (
-    <div className="max-w-3xl">
+    <div>
       <h1 className="font-display text-2xl font-bold text-parchment">Game Picker</h1>
-      <p className="mt-1 text-sm text-mute">
+      <p className="mt-1 max-w-2xl text-sm text-mute">
         A random game you could play — one you don&rsquo;t own, or one you own and
         haven&rsquo;t started. Hit re-pick until something grabs you.
       </p>

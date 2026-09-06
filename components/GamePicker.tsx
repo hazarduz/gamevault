@@ -214,134 +214,142 @@ export default function GamePicker() {
       ) : !game ? (
         <p className="mt-6 text-sm text-mute">{noneReason}</p>
       ) : (
-        <>
-          <div className="mt-6 flex flex-col gap-5 rounded-card border border-ink-line bg-ink-soft p-4 sm:flex-row">
-            <div className="relative aspect-[3/4] w-full flex-shrink-0 overflow-hidden rounded-card border border-ink-line bg-ink-softer sm:w-44">
-              {game.coverUrl && (
-                <Image src={game.coverUrl} alt={game.title} fill className="object-cover" />
-              )}
-            </div>
-
-            <div className="min-w-0 flex-1">
-              <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-                <h2 className="font-display text-xl font-bold text-parchment">{game.title}</h2>
-                {game.rating != null && (
-                  <span className="text-sm text-amber">{game.rating}/100</span>
+        <div className="mt-6 grid gap-6 lg:grid-cols-2">
+          {/* Left: details + actions */}
+          <div className="flex flex-col gap-4">
+            <div className="flex flex-col gap-5 rounded-card border border-ink-line bg-ink-soft p-4 sm:flex-row">
+              <div className="relative aspect-[3/4] w-full flex-shrink-0 overflow-hidden rounded-card border border-ink-line bg-ink-softer sm:w-44">
+                {game.coverUrl && (
+                  <Image src={game.coverUrl} alt={game.title} fill className="object-cover" />
                 )}
-                {year && <span className="text-sm text-mute">{year}</span>}
               </div>
 
-              {game.genres.length > 0 && (
-                <p className="mt-1 text-xs text-mute">{game.genres.join(" · ")}</p>
-              )}
-              {(game.developer || game.publisher) && (
-                <p className="mt-0.5 text-xs text-mute">
-                  {[
-                    game.developer,
-                    game.publisher && game.publisher !== game.developer ? game.publisher : null,
-                  ]
-                    .filter(Boolean)
-                    .join(" / ")}
-                </p>
-              )}
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+                  <h2 className="font-display text-xl font-bold text-parchment">{game.title}</h2>
+                  {game.rating != null && (
+                    <span className="text-sm text-amber">{game.rating}/100</span>
+                  )}
+                  {year && <span className="text-sm text-mute">{year}</span>}
+                </div>
 
-              {owned && (
-                <p className="mt-2 text-xs text-teal">
-                  You already own this (unplayed) —{" "}
-                  <Link href={`/games/${ownedGameId}`} className="underline">
-                    open it
-                  </Link>
-                  .
-                </p>
-              )}
+                {game.genres.length > 0 && (
+                  <p className="mt-1 text-xs text-mute">{game.genres.join(" · ")}</p>
+                )}
+                {(game.developer || game.publisher) && (
+                  <p className="mt-0.5 text-xs text-mute">
+                    {[
+                      game.developer,
+                      game.publisher && game.publisher !== game.developer ? game.publisher : null,
+                    ]
+                      .filter(Boolean)
+                      .join(" / ")}
+                  </p>
+                )}
 
-              {game.summary && (
-                <p className="mt-3 line-clamp-6 text-sm leading-relaxed text-parchment/90">
-                  {game.summary}
-                </p>
-              )}
+                {owned && (
+                  <p className="mt-2 text-xs text-teal">
+                    You already own this (unplayed) —{" "}
+                    <Link href={`/games/${ownedGameId}`} className="underline">
+                      open it
+                    </Link>
+                    .
+                  </p>
+                )}
 
-              <p className="mt-3 text-xs text-mute">{hltbText}</p>
+                {game.summary && (
+                  <p className="mt-3 text-sm leading-relaxed text-parchment/90">{game.summary}</p>
+                )}
+
+                <p className="mt-3 text-xs text-mute">{hltbText}</p>
+              </div>
             </div>
+
+            <div className="flex flex-wrap items-center gap-2">
+              {!owned && (
+                <>
+                  <label className="text-xs text-mute">
+                    Add as{" "}
+                    <select
+                      className="field ml-1 w-40 text-xs"
+                      value={addPlatform}
+                      onChange={(e) => setAddPlatform(e.target.value)}
+                    >
+                      {PLATFORM_OPTIONS.map((p) => (
+                        <option key={p} value={p}>
+                          {p}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <button
+                    type="button"
+                    onClick={addWishlist}
+                    disabled={busy !== null || done === "wishlist"}
+                    className="btn-secondary text-sm"
+                  >
+                    {busy === "wishlist"
+                      ? "Adding…"
+                      : done === "wishlist"
+                      ? "Wishlisted ✓"
+                      : "Add to wishlist"}
+                  </button>
+                </>
+              )}
+
+              <button
+                type="button"
+                onClick={addPlaylist}
+                disabled={busy !== null || done === "playlist"}
+                className="btn-primary text-sm"
+              >
+                {busy === "playlist"
+                  ? "Adding…"
+                  : done === "playlist"
+                  ? "On play list ✓"
+                  : "Add to my play list"}
+              </button>
+            </div>
+
+            {msg && <p className="text-sm text-amber">{msg}</p>}
           </div>
 
-          {game.trailerYoutubeId && (
-            <div className="mt-4 aspect-video w-full overflow-hidden rounded-card border border-ink-line bg-black">
-              <iframe
-                key={game.trailerYoutubeId}
-                className="h-full w-full"
-                src={`https://www.youtube-nocookie.com/embed/${game.trailerYoutubeId}`}
-                title={`${game.title} trailer`}
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                allowFullScreen
-              />
-            </div>
-          )}
-
-          {game.screenshots.length > 0 && (
-            <div className="mt-4 flex gap-2 overflow-x-auto pb-1">
-              {game.screenshots.map((src) => (
-                // Plain <img>: a variable-length gallery from images.igdb.com
-                // (already an allowed host for the covers).
-                <img
-                  key={src}
-                  src={src}
-                  alt=""
-                  loading="lazy"
-                  className="h-28 flex-shrink-0 rounded border border-ink-line object-cover"
+          {/* Right: trailer + screenshots */}
+          <div className="flex flex-col gap-4">
+            {game.trailerYoutubeId && (
+              <div className="aspect-video w-full overflow-hidden rounded-card border border-ink-line bg-black">
+                <iframe
+                  key={game.trailerYoutubeId}
+                  className="h-full w-full"
+                  src={`https://www.youtube-nocookie.com/embed/${game.trailerYoutubeId}`}
+                  title={`${game.title} trailer`}
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allowFullScreen
                 />
-              ))}
-            </div>
-          )}
-
-          <div className="mt-4 flex flex-wrap items-center gap-2">
-            {!owned && (
-              <>
-                <label className="text-xs text-mute">
-                  Add as{" "}
-                  <select
-                    className="field ml-1 w-40 text-xs"
-                    value={addPlatform}
-                    onChange={(e) => setAddPlatform(e.target.value)}
-                  >
-                    {PLATFORM_OPTIONS.map((p) => (
-                      <option key={p} value={p}>
-                        {p}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <button
-                  type="button"
-                  onClick={addWishlist}
-                  disabled={busy !== null || done === "wishlist"}
-                  className="btn-secondary text-sm"
-                >
-                  {busy === "wishlist"
-                    ? "Adding…"
-                    : done === "wishlist"
-                    ? "Wishlisted ✓"
-                    : "Add to wishlist"}
-                </button>
-              </>
+              </div>
             )}
 
-            <button
-              type="button"
-              onClick={addPlaylist}
-              disabled={busy !== null || done === "playlist"}
-              className="btn-primary text-sm"
-            >
-              {busy === "playlist"
-                ? "Adding…"
-                : done === "playlist"
-                ? "On play list ✓"
-                : "Add to my play list"}
-            </button>
-          </div>
+            {game.screenshots.length > 0 && (
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                {game.screenshots.map((src) => (
+                  // Plain <img>: variable-length gallery from images.igdb.com
+                  // (already an allowed host for the covers).
+                  <img
+                    key={src}
+                    src={src}
+                    alt=""
+                    loading="lazy"
+                    className="aspect-video w-full rounded border border-ink-line object-cover"
+                  />
+                ))}
+              </div>
+            )}
 
-          {msg && <p className="mt-2 text-sm text-amber">{msg}</p>}
-        </>
+            {!game.trailerYoutubeId && game.screenshots.length === 0 && (
+              <p className="text-xs text-mute">No trailer or screenshots for this one.</p>
+            )}
+          </div>
+        </div>
       )}
     </div>
   );
