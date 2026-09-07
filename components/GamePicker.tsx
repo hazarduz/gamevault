@@ -311,10 +311,10 @@ export default function GamePicker() {
             <div className="flex flex-wrap items-center gap-2">
               {!owned && (
                 <>
-                  <label className="text-xs text-mute">
-                    Add as{" "}
+                  <label className="flex items-center gap-1.5 text-xs text-mute">
+                    Add as
                     <select
-                      className="field ml-1 w-44 text-xs"
+                      className="field w-40 text-xs"
                       value={addPlatform}
                       onChange={(e) => setAddPlatform(e.target.value)}
                     >
