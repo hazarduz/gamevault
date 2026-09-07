@@ -18,6 +18,7 @@
 // not an error.
 
 import { prisma } from "@/lib/prisma";
+import { getSteamApiKey } from "@/lib/settings";
 
 const STEAM_API = "https://api.steampowered.com";
 
@@ -39,16 +40,53 @@ export interface SteamAppEntry {
 
 const APP_LIST_TTL_MS = 7 * 24 * 3_600_000; // a week — the list barely moves
 
-async function fetchAppListFromSteam(): Promise<SteamAppEntry[]> {
-  const res = await fetch(`${STEAM_API}/ISteamApps/GetAppList/v2/`, {
-    cache: "no-store",
-  });
-  if (!res.ok) throw new Error(`Steam GetAppList returned ${res.status}.`);
-  const data: any = await res.json();
-  const apps: any[] = data?.applist?.apps ?? [];
+function normalizeAppEntries(apps: any[]): SteamAppEntry[] {
   return apps
     .map((a) => ({ appid: Number(a?.appid), name: String(a?.name ?? "").trim() }))
     .filter((a) => Number.isInteger(a.appid) && a.appid > 0 && a.name);
+}
+
+// Steam serves the full app list from two endpoints:
+//   IStoreService/GetAppList/v1   — current, needs the Web API key,
+//     paginated; served reliably from every edge.
+//   ISteamApps/GetAppList/v2      — legacy, keyless, but a lot of Akamai
+//     edge nodes now 404 it ("Method 'GetAppList' not found"), which is
+//     what "Steam GetAppList returned 404" was.
+// Prefer the keyed one; fall back to legacy only when there's no key.
+async function fetchAppListFromSteam(): Promise<SteamAppEntry[]> {
+  const key = await getSteamApiKey();
+  if (key) return fetchAppListViaStoreService(key);
+
+  const res = await fetch(`${STEAM_API}/ISteamApps/GetAppList/v2/`, { cache: "no-store" });
+  if (!res.ok) {
+    throw new Error(
+      `Steam GetAppList returned ${res.status}. Set the Steam Web API key in Settings — ` +
+        `the keyless app-list endpoint is unreliable and often 404s.`
+    );
+  }
+  const data: any = await res.json();
+  return normalizeAppEntries(data?.applist?.apps ?? []);
+}
+
+async function fetchAppListViaStoreService(key: string): Promise<SteamAppEntry[]> {
+  const out: SteamAppEntry[] = [];
+  let lastAppId = 0;
+  // ~150k+ games; 50k per page -> a handful of requests. Cap for safety.
+  for (let page = 0; page < 20; page++) {
+    const url =
+      `${STEAM_API}/IStoreService/GetAppList/v1/?key=${encodeURIComponent(key)}` +
+      `&include_games=true&include_dlc=false&max_results=50000` +
+      (lastAppId ? `&last_appid=${lastAppId}` : "");
+    const res = await fetch(url, { cache: "no-store" });
+    if (!res.ok) throw new Error(`Steam GetAppList returned ${res.status}.`);
+    const data: any = await res.json();
+    const apps: any[] = data?.response?.apps ?? [];
+    out.push(...normalizeAppEntries(apps));
+    if (!data?.response?.have_more_results || !data?.response?.last_appid) break;
+    lastAppId = Number(data.response.last_appid);
+    if (!Number.isInteger(lastAppId) || lastAppId <= 0) break;
+  }
+  return out;
 }
 
 export async function getSteamAppList(opts: { force?: boolean } = {}): Promise<SteamAppEntry[]> {
@@ -58,7 +96,10 @@ export async function getSteamAppList(opts: { force?: boolean } = {}): Promise<S
     return Array.isArray(payload?.apps) ? payload.apps : [];
   }
 
-  const apps = await withTimeout(fetchAppListFromSteam(), 30_000, "Steam app list fetch");
+  const apps = await withTimeout(fetchAppListFromSteam(), 60_000, "Steam app list fetch");
+  if (apps.length === 0) {
+    throw new Error("Steam returned an empty app list — try again in a minute.");
+  }
   await prisma.steamAppCache.upsert({
     where: { id: "singleton" },
     create: { id: "singleton", payload: { apps } as any, fetchedAt: new Date() },

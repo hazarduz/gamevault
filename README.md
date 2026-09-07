@@ -167,9 +167,12 @@ the target profile's "Game details" privacy set to Public.
   (achievement definitions) and `GetGlobalAchievementPercentagesForApp` (rarity)
   are public per app — no ownership needed, which is what makes cross-linking a
   non-Steam game possible. `GetPlayerAchievements` (this account's earned status)
-  just comes back empty for an app the account hasn't played. Steam's app list
-  (`GetAppList`, ~190k entries) is cached in `SteamAppCache` and searched locally
-  when linking a game that didn't come from Steam import.
+  just comes back empty for an app the account hasn't played. Steam's full app
+  list (~190k entries) is cached in `SteamAppCache` and searched locally when
+  linking a game that didn't come from Steam import — pulled from
+  `IStoreService/GetAppList` (paginated, needs the Web API key), falling back to
+  the legacy keyless `ISteamApps/GetAppList/v2` only if no key is set (many Steam
+  edge nodes now 404 that one).
 
 - **`lib/free-games.ts`** merges **`lib/gamerpower.ts`** (GamerPower's keyless
   giveaways API) and **`lib/epic-free.ts`** (Epic's own `freeGamesPromotions`
