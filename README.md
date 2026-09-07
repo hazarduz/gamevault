@@ -30,7 +30,8 @@ account has its own completely separate collection.
 - **PlayStation trophy sync** — point it at your PSN account with an NPSSO token
   and it lists every PSN game, confirmed against your collection. Linking one
   pulls its full trophy list onto the game's page — every bronze/silver/gold/
-  platinum, which you've earned and when — and earning the platinum marks the
+  platinum, which you've earned and when, unlocked ones first (newest at the
+  top) — and earning the platinum marks the
   game **Platinum Achieved**. Re-sync one game, or all linked games at once.
   A wrong auto-match (fuzzy title matching occasionally picks the wrong PSN
   title) is fixed from the game's own page: "Re-match" searches your PSN

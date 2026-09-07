@@ -19,17 +19,28 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
   const res = await ownedGame(params.id);
   if ("error" in res) return res.error;
 
+  // Unlocked first, newest unlock at the very top; everything still
+  // unearned keeps its natural (group / in-game) order below.
   const [trophies, achievements] = await Promise.all([
     res.game.psnNpCommunicationId
       ? prisma.trophy.findMany({
           where: { gameId: params.id },
-          orderBy: [{ groupId: "asc" }, { sortOrder: "asc" }],
+          orderBy: [
+            { earned: "desc" },
+            { earnedAt: { sort: "desc", nulls: "last" } },
+            { groupId: "asc" },
+            { sortOrder: "asc" },
+          ],
         })
       : [],
     res.game.steamAchievementsAppId || res.game.steamAppId
       ? prisma.achievement.findMany({
           where: { gameId: params.id },
-          orderBy: { sortOrder: "asc" },
+          orderBy: [
+            { earned: "desc" },
+            { earnedAt: { sort: "desc", nulls: "last" } },
+            { sortOrder: "asc" },
+          ],
         })
       : [],
   ]);
