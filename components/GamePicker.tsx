@@ -9,6 +9,7 @@ import {
   PICKER_ADD_PLATFORMS,
   PICKER_GENRES,
   PICKER_LENGTHS,
+  PICKER_RATINGS,
 } from "@/lib/picker-filters";
 
 interface PickerGame {
@@ -54,6 +55,7 @@ export default function GamePicker() {
   // Filters
   const [filterPlatform, setFilterPlatform] = useState("");
   const [filterGenre, setFilterGenre] = useState("");
+  const [filterRating, setFilterRating] = useState("");
   const [filterLength, setFilterLength] = useState("");
 
   const [addPlatform, setAddPlatform] = useState<string>(PICKER_ADD_PLATFORMS[0]);
@@ -77,6 +79,7 @@ export default function GamePicker() {
       const qs = new URLSearchParams();
       if (filterPlatform) qs.set("platform", filterPlatform);
       if (filterGenre) qs.set("genre", filterGenre);
+      if (filterRating) qs.set("rating", filterRating);
       if (filterLength) qs.set("length", filterLength);
       const res = await fetch(`/api/picker${qs.toString() ? `?${qs}` : ""}`);
       const json = await res.json();
@@ -113,7 +116,7 @@ export default function GamePicker() {
     } finally {
       if (rollId.current === myRoll) setLoading(false);
     }
-  }, [filterPlatform, filterGenre, filterLength]);
+  }, [filterPlatform, filterGenre, filterRating, filterLength]);
 
   useEffect(() => {
     pick();
@@ -196,6 +199,14 @@ export default function GamePicker() {
           {PICKER_GENRES.map((g) => (
             <option key={g.id} value={g.id}>
               {g.label}
+            </option>
+          ))}
+        </Filter>
+        <Filter label="Rating" value={filterRating} onChange={setFilterRating}>
+          <option value="">All ratings</option>
+          {PICKER_RATINGS.map((r) => (
+            <option key={r.value} value={r.value}>
+              {r.label}
             </option>
           ))}
         </Filter>

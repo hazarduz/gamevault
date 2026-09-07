@@ -57,8 +57,9 @@ account has its own completely separate collection.
 - **Game Picker** — rolls a random IGDB game you could play (one you don't own,
   or own but haven't started), with its description, rating, trailer,
   screenshots and — fetched automatically — HowLongToBeat times. Optional
-  dropdowns filter by platform, genre, and playtime band (matched against
-  HLTB's main-story time). The roll only ever returns games on the seven
+  dropdowns filter by platform, genre, score band (against the card's
+  IGDB rating), and playtime band (matched against HLTB's main-story
+  time). The roll only ever returns games on the seven
   modern platforms the picker offers (PC, PS4/PS5, Xbox One / Series,
   Switch / Switch 2) and to games released in 2018 or later — otherwise
   its IGDB query is deliberately loose (any such game with a cover) so it

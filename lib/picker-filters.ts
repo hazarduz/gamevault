@@ -59,3 +59,26 @@ export const PICKER_LENGTHS: LengthBand[] = [
 export function lengthBand(value: string | null | undefined): LengthBand | null {
   return PICKER_LENGTHS.find((b) => b.value === value) ?? null;
 }
+
+// Rating bands are matched against the score shown on the card (IGDB's
+// aggregated critic score, falling back to the combined rating), 0–100.
+// `min` is exclusive, `max` inclusive — so the bands tile with no gaps
+// even though the labels read "51–70", "71–80", etc.
+export interface RatingBand {
+  value: string;
+  label: string;
+  min: number;
+  max: number;
+}
+
+export const PICKER_RATINGS: RatingBand[] = [
+  { value: "0-50", label: "0–50%", min: -1, max: 50 },
+  { value: "51-70", label: "51–70%", min: 50, max: 70 },
+  { value: "71-80", label: "71–80%", min: 70, max: 80 },
+  { value: "81-90", label: "81–90%", min: 80, max: 90 },
+  { value: "90+", label: "90%+", min: 90, max: 1000 },
+];
+
+export function ratingBand(value: string | null | undefined): RatingBand | null {
+  return PICKER_RATINGS.find((b) => b.value === value) ?? null;
+}

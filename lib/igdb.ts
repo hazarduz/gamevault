@@ -218,6 +218,11 @@ export interface PickerCandidate {
 export interface PickerFilters {
   platformId?: number | null;
   genreId?: number | null;
+  // A widened score window (0–100) — the route narrows to the exact band
+  // afterwards against the score shown on the card. Used only to keep the
+  // rolled pool in roughly the right area and skip unrated games.
+  ratingMin?: number | null;
+  ratingMax?: number | null;
 }
 
 export interface RandomGamesResult {
@@ -257,6 +262,13 @@ export async function getRandomGames(
       : `platforms = (${pickerPlatformIds})`
   );
   if (filters.genreId) clauses.push(`genres = (${Math.trunc(filters.genreId)})`);
+  if (filters.ratingMin != null || filters.ratingMax != null) {
+    clauses.push("total_rating != null");
+    if (filters.ratingMin != null)
+      clauses.push(`total_rating >= ${Math.trunc(filters.ratingMin)}`);
+    if (filters.ratingMax != null)
+      clauses.push(`total_rating <= ${Math.trunc(filters.ratingMax)}`);
+  }
   const where = `where ${clauses.join(" & ")}`;
 
   const LIMIT = 50;

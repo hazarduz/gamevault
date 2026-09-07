@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/session";
-import { lengthBand } from "@/lib/picker-filters";
+import { lengthBand, ratingBand } from "@/lib/picker-filters";
 import type { PickerCandidate } from "@/lib/igdb";
 
 export const dynamic = "force-dynamic";
@@ -19,7 +19,15 @@ export async function GET(req: NextRequest) {
   const platformId = Number(sp.get("platform")) || null;
   const genreId = Number(sp.get("genre")) || null;
   const band = lengthBand(sp.get("length"));
+  const rating = ratingBand(sp.get("rating"));
   const debugMode = sp.get("debug") === "1";
+
+  // Feed IGDB a widened window so the rolled pool sits roughly in the
+  // right area (and skips unrated games); the exact band is applied
+  // afterwards against the score shown on the card.
+  const RATING_WIDEN = 15;
+  const ratingMin = rating ? Math.max(0, rating.min - RATING_WIDEN) : null;
+  const ratingMax = rating ? Math.min(100, rating.max + RATING_WIDEN) : null;
 
   try {
     const rows = await prisma.game.findMany({
@@ -49,10 +57,21 @@ export async function GET(req: NextRequest) {
     const HLTB_BUDGET = 10;
 
     for (let pass = 0; pass < 4 && !picked; pass++) {
-      const { games, debug } = await getRandomGames({ platformId, genreId });
+      const { games, debug } = await getRandomGames({
+        platformId,
+        genreId,
+        ratingMin,
+        ratingMax,
+      });
       debugPasses.push(debug);
 
       let eligible = games.filter((c) => !exclude.has(c.igdbId));
+      if (rating) {
+        // Narrow to the exact band against the score shown on the card.
+        eligible = eligible.filter(
+          (c) => c.rating != null && c.rating > rating.min && c.rating <= rating.max
+        );
+      }
       // shuffle so the same offset page doesn't always yield the same pick
       for (let i = eligible.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
@@ -88,7 +107,12 @@ export async function GET(req: NextRequest) {
 
     if (debugMode) {
       return NextResponse.json({
-        filters: { platformId, genreId, length: band?.value ?? null },
+        filters: {
+          platformId,
+          genreId,
+          length: band?.value ?? null,
+          rating: rating?.value ?? null,
+        },
         passes: debugPasses,
         excludedCount: exclude.size,
         picked: picked ? { igdbId: picked.igdbId, title: picked.title } : null,
@@ -101,6 +125,8 @@ export async function GET(req: NextRequest) {
         reason:
           band != null
             ? "No game in that time range turned up — widen the length filter or re-pick."
+            : rating != null
+            ? "No game in that score range turned up — widen the rating filter or re-pick."
             : platformId || genreId
             ? "Nothing matched those filters — loosen them or re-pick."
             : "The roll came up empty — try again.",
