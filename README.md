@@ -66,7 +66,8 @@ account has its own completely separate collection.
   basically always finds something; `GET /api/picker?debug=1` dumps the
   query diagnostics. The
   "Add as" dropdown offers that same platform set. Re-pick until something
-  sticks, then wishlist it or drop it on the play list.
+  sticks, then add it straight to your collection, your wishlist, or your
+  play list.
 - **Release Calendar** — upcoming games from IGDB, grouped by date, filtered to
   your platforms. Wishlist straight from it, choosing the platform.
 - **Discover** and **Indie Discover** — recommendations aggregated from IGDB's

@@ -59,8 +59,9 @@ export default function GamePicker() {
   const [filterLength, setFilterLength] = useState("");
 
   const [addPlatform, setAddPlatform] = useState<string>(PICKER_ADD_PLATFORMS[0]);
-  const [busy, setBusy] = useState<"wishlist" | "playlist" | null>(null);
-  const [done, setDone] = useState<"wishlist" | "playlist" | null>(null);
+  type Action = "wishlist" | "playlist" | "collection";
+  const [busy, setBusy] = useState<Action | null>(null);
+  const [done, setDone] = useState<Action | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
 
   // Bumped each pick so a slow HLTB response from a previous roll can't
@@ -121,6 +122,28 @@ export default function GamePicker() {
   useEffect(() => {
     pick();
   }, [pick]);
+
+  async function addCollection() {
+    if (!game) return;
+    setBusy("collection");
+    setMsg(null);
+    try {
+      const res = await fetch("/api/wishlist", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ igdbId: game.igdbId, platform: addPlatform, wishlist: false }),
+      });
+      const r = await res.json();
+      if (!res.ok) throw new Error(r.error ?? "Couldn't add that.");
+      setDone("collection");
+      setOwnedGameId(r.id ?? null);
+      setMsg(`Added "${game.title}" (${addPlatform}) to your collection.`);
+    } catch (e: any) {
+      setMsg(e.message);
+    } finally {
+      setBusy(null);
+    }
+  }
 
   async function addWishlist() {
     if (!game) return;
@@ -302,6 +325,18 @@ export default function GamePicker() {
                       ))}
                     </select>
                   </label>
+                  <button
+                    type="button"
+                    onClick={addCollection}
+                    disabled={busy !== null || done === "collection"}
+                    className="btn-secondary text-sm"
+                  >
+                    {busy === "collection"
+                      ? "Adding…"
+                      : done === "collection"
+                      ? "In collection ✓"
+                      : "Add to my collection"}
+                  </button>
                   <button
                     type="button"
                     onClick={addWishlist}
