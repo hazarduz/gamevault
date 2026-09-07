@@ -7,10 +7,12 @@ import { parseScoreBands } from "@/lib/score-badge";
 import { parseStatusColors, isPlayStatus } from "@/lib/play-status";
 import { sortGames, DEFAULT_SORT, isSortValue, type SortValue } from "@/lib/sort-games";
 import { DEFAULT_VIEW, isViewMode, type ViewMode } from "@/lib/view-mode";
+import { platformStatsKind, getPsnStats, getSteamStats } from "@/lib/platform-stats";
 import CollectionGrid from "@/components/CollectionGrid";
 import SortSelect from "@/components/SortSelect";
 import ViewSelect from "@/components/ViewSelect";
 import FilterBar from "@/components/FilterBar";
+import PlatformStatsBanner from "@/components/PlatformStatsBanner";
 import Link from "next/link";
 
 export const dynamic = "force-dynamic";
@@ -101,6 +103,13 @@ export default async function DashboardPage({
     games.filter((g) => g.steamAchievementsAppId || g.steamAppId).map((g) => g.id)
   );
 
+  // When the grid is filtered to one PlayStation platform or to PC, show
+  // an account-level trophy / achievement summary above it.
+  const statsKind = platformStatsKind(platform);
+  const psnStats = statsKind === "psn" ? await getPsnStats(user.id) : null;
+  const steamStatsRaw = statsKind === "steam" ? await getSteamStats(user.id) : null;
+  const steamStats = steamStatsRaw && steamStatsRaw.pcGames > 0 ? steamStatsRaw : null;
+
   // Preserved across the search form.
   const keep: Record<string, string> = {};
   if (sort !== DEFAULT_SORT) keep.sort = sort;
@@ -154,6 +163,9 @@ export default async function DashboardPage({
           </form>
         </div>
       </div>
+
+      {psnStats && <PlatformStatsBanner kind="psn" psn={psnStats} />}
+      {steamStats && <PlatformStatsBanner kind="steam" steam={steamStats} />}
 
       {games.length === 0 ? (
         <div className="rounded-card border border-dashed border-ink-line py-24 text-center">

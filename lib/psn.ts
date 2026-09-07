@@ -60,6 +60,10 @@ async function loadPsnApi() {
       term: string,
       domain: string
     ) => Promise<any>;
+    getUserTrophyProfileSummary?: (
+      auth: { accessToken: string },
+      accountId: string
+    ) => Promise<any>;
   };
 }
 
@@ -488,4 +492,52 @@ export async function unlinkTrophies(gameId: string): Promise<void> {
       },
     }),
   ]);
+}
+
+export interface PsnTrophySummary {
+  trophyLevel: number;
+  progress: number; // % towards the next level
+  tier: number;
+  bronze: number;
+  silver: number;
+  gold: number;
+  platinum: number;
+  total: number;
+}
+
+// Account-wide earned-trophy totals for the signed-in PSN account —
+// bronze/silver/gold/platinum plus the trophy level. One call to Sony's
+// own trophy-summary endpoint (no scraping, reuses the NPSSO auth). Shown
+// on the PlayStation platform pages.
+export async function getPsnTrophySummary(
+  creds: PsnCredentials
+): Promise<PsnTrophySummary> {
+  const { accessToken, onlineId } = await authorize(creds);
+  const api = await loadPsnApi();
+  if (!api.getUserTrophyProfileSummary) {
+    throw new Error("psn-api has no getUserTrophyProfileSummary() — the package version may have changed.");
+  }
+  const accountId = await resolveAccountId(accessToken, onlineId);
+
+  const r: any = await withTimeout(
+    api.getUserTrophyProfileSummary({ accessToken }, accountId),
+    15_000,
+    "PSN trophy summary"
+  );
+  const e = r?.earnedTrophies ?? {};
+  const bronze = Number(e.bronze) || 0;
+  const silver = Number(e.silver) || 0;
+  const gold = Number(e.gold) || 0;
+  const platinum = Number(e.platinum) || 0;
+
+  return {
+    trophyLevel: Number(r?.trophyLevel) || 0,
+    progress: Number(r?.progress) || 0,
+    tier: Number(r?.tier) || 0,
+    bronze,
+    silver,
+    gold,
+    platinum,
+    total: bronze + silver + gold + platinum,
+  };
 }

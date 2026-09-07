@@ -36,6 +36,10 @@ account has its own completely separate collection.
   A wrong auto-match (fuzzy title matching occasionally picks the wrong PSN
   title) is fixed from the game's own page: "Re-match" searches your PSN
   library and re-links to whichever title you pick, or "Unlink" clears it.
+  Filtering the collection to **PlayStation 4** or **PlayStation 5** shows a
+  banner of your account-wide trophy totals (bronze/silver/gold/platinum and
+  trophy level) straight from Sony's trophy-summary endpoint, cached for a
+  few hours with a "Refresh".
 - **Steam library import** — add your Steam Web API key once (admin), then each
   user pastes their SteamID in Settings and pulls their owned games in, matched
   against IGDB for art and metadata. Games come in as Digital / PC, and a re-scan
@@ -45,6 +49,10 @@ account has its own completely separate collection.
   game can be cross-linked to its Steam release for a reference achievement
   list, with real progress if this Steam account happens to have played it
   there too. Games already pulled in via Steam library import link automatically.
+  Filtering the collection to **PC** shows a banner totalling unlocked
+  achievements, "perfect" games (100% unlocked) and how many of your PC games
+  have achievement data yet, tallied from those already synced — "Refresh"
+  runs a sync across the rest.
 - **Currently Free** — a page of free-to-keep games from the Epic Games Store and
   cross-platform giveaway round-ups (GamerPower). Cached in the database and
   refreshed on the first visit after it goes stale (interval set in Settings,
@@ -202,6 +210,7 @@ app/
   api/picker/ · api/hltb/     Game Picker — random game / search-only HLTB
   api/psn/scan · apply/      PSN title discovery / link + trophy sync
   api/psn/sync-all/          Re-sync every already-linked PSN game
+  api/psn/summary/           Force-refresh the account-wide trophy totals
   api/psn/search-titles/     Search your PSN library, for re-matching
   api/games/[id]/relink-psn/ Re-match or unlink a game's PSN title
   api/games/[id]/sync-trophies/  Re-sync one linked game's trophies
@@ -222,6 +231,7 @@ lib/
   score-badge.ts play-status.ts media.ts   Badge / status / media helpers
   view-mode.ts               Large grid / small grid / list — the ?view= values
   picker-filters.ts          Game Picker platform / genre / length dropdown lists
+  platform-stats.ts          PS4/PS5 trophy totals + PC achievement totals banner
   tenant.ts prefs.ts         Multi-user bootstrap + per-user preferences
   session.ts settings.ts     Current user / instance config
   prisma.ts                  Prisma client singleton

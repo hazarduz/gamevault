@@ -140,6 +140,12 @@ model UserPrefs {
   psnOnlineId String?
   psnNpsso    String?
 
+  // Cached account-wide trophy totals from Sony's trophy-summary endpoint
+  // ({ trophyLevel, progress, tier, bronze, silver, gold, platinum, total }).
+  // Refreshed on the PlayStation platform pages once older than a few hours.
+  psnTrophySummary   Json?
+  psnTrophySummaryAt DateTime?
+
   // Steam library import. Just the account identifier — the Web API key is
   // instance-wide (Settings.steamApiKey), so there's no per-user secret.
   steamId     String?
