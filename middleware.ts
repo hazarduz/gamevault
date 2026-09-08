@@ -16,7 +16,12 @@ export async function middleware(req: NextRequest) {
     return NextResponse.next();
   }
 
-  const token = req.cookies.get(SESSION_COOKIE_NAME)?.value;
+  // Cookie for the web app; `Authorization: Bearer` for the Android app,
+  // which has no reliable cookie jar across app restarts. See
+  // lib/session.ts for the matching fallback used inside route handlers.
+  const authHeader = req.headers.get("authorization");
+  const bearer = authHeader?.startsWith("Bearer ") ? authHeader.slice(7).trim() : null;
+  const token = req.cookies.get(SESSION_COOKIE_NAME)?.value ?? bearer;
   const session = token ? await verifySessionToken(token) : null;
 
   if (!session) {

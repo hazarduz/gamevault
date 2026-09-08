@@ -1,0 +1,23 @@
+{
+  "expo": {
+    "name": "GameVault",
+    "slug": "gamevault-mobile",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "splash": {
+      "backgroundColor": "#0f172a"
+    },
+    "assetBundlePatterns": ["**/*"],
+    "android": {
+      "package": "com.gamevault.mobile",
+      "versionCode": 1,
+      "adaptiveIcon": {
+        "backgroundColor": "#0f172a"
+      },
+      "permissions": ["INTERNET"]
+    },
+    "plugins": ["expo-secure-store"]
+  }
+}

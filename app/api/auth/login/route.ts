@@ -21,7 +21,10 @@ export async function POST(req: NextRequest) {
   }
 
   const token = await createSessionToken(user.id);
-  const res = NextResponse.json({ ok: true });
+  // `token` is only useful to a native client that can't rely on the
+  // cookie (see lib/session.ts); the web app ignores it and uses the
+  // cookie set below as always.
+  const res = NextResponse.json({ ok: true, token, username: user.username });
   setSessionCookie(req, res, token);
   return res;
 }
