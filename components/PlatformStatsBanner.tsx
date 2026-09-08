@@ -3,13 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import type { PsnStats, SteamStats } from "@/lib/platform-stats";
-
-const TROPHY_COLOURS: Record<string, string> = {
-  platinum: "#a7c7e7",
-  gold: "#e6b422",
-  silver: "#c0c0c0",
-  bronze: "#cd7f32",
-};
+import { TROPHY_TIER_COLORS } from "@/lib/trophy-colors";
 
 export default function PlatformStatsBanner(
   props:
@@ -51,7 +45,7 @@ export default function PlatformStatsBanner(
               <span key={t} className="flex items-center gap-1.5 text-parchment">
                 <span
                   className="inline-block h-2.5 w-2.5 flex-shrink-0 rounded-full"
-                  style={{ backgroundColor: TROPHY_COLOURS[t] }}
+                  style={{ backgroundColor: TROPHY_TIER_COLORS[t] }}
                 />
                 <span className="font-display font-bold">{props.psn[t].toLocaleString()}</span>
                 <span className="text-mute capitalize">{t}</span>

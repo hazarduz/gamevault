@@ -7,6 +7,7 @@ import Image from "next/image";
 import { PLATFORM_OPTIONS, isDigitalOnlyPlatform } from "@/lib/platforms";
 import { PLAY_STATUS_OPTIONS } from "@/lib/play-status";
 import MediaIcon from "@/components/MediaIcon";
+import { TROPHY_TIER_COLORS, TROPHY_TIER_LABELS } from "@/lib/trophy-colors";
 
 interface Trophy {
   id: string;
@@ -95,20 +96,6 @@ interface PsnSearchResult {
   defined: { bronze: number; silver: number; gold: number; platinum: number };
   earned: { bronze: number; silver: number; gold: number; platinum: number };
 }
-
-const TROPHY_TYPE_COLOR: Record<Trophy["type"], string> = {
-  bronze: "bg-orange-400",
-  silver: "bg-slate-300",
-  gold: "bg-yellow-400",
-  platinum: "bg-sky-200",
-};
-
-const TROPHY_TYPE_LABEL: Record<Trophy["type"], string> = {
-  bronze: "Bronze",
-  silver: "Silver",
-  gold: "Gold",
-  platinum: "Platinum",
-};
 
 export default function GameDetailPage({ params }: { params: { id: string } }) {
   const router = useRouter();
@@ -678,7 +665,13 @@ export default function GameDetailPage({ params }: { params: { id: string } }) {
                           t.earned ? "" : "opacity-50"
                         }`}
                       >
-                        <div className="relative h-10 w-10 flex-shrink-0 overflow-hidden rounded bg-ink-softer">
+                        <div
+                          className={`relative h-10 w-10 flex-shrink-0 overflow-hidden rounded border-2 bg-ink-softer ${
+                            t.earned ? "" : "border-ink-line"
+                          }`}
+                          style={t.earned ? { borderColor: TROPHY_TIER_COLORS[t.type] } : undefined}
+                          title={TROPHY_TIER_LABELS[t.type]}
+                        >
                           {t.iconUrl && (
                             // Plain <img>: PSN's trophy-icon hosts vary and
                             // aren't worth maintaining in next.config.
@@ -690,15 +683,9 @@ export default function GameDetailPage({ params }: { params: { id: string } }) {
                           )}
                         </div>
                         <div className="min-w-0 flex-1">
-                          <div className="flex items-center gap-1.5">
-                            <span
-                              className={`h-2 w-2 flex-shrink-0 rounded-full ${TROPHY_TYPE_COLOR[t.type]}`}
-                              title={TROPHY_TYPE_LABEL[t.type]}
-                            />
-                            <p className="truncate text-sm text-parchment">
-                              {t.hidden && !t.earned ? "Hidden trophy" : t.name}
-                            </p>
-                          </div>
+                          <p className="truncate text-sm text-parchment">
+                            {t.hidden && !t.earned ? "Hidden trophy" : t.name}
+                          </p>
                           {t.description && !(t.hidden && !t.earned) && (
                             <p className="truncate text-xs text-mute">{t.description}</p>
                           )}

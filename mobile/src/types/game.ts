@@ -7,12 +7,14 @@
 export type PlayStatus = "unplayed" | "in_progress" | "completed" | "platinum";
 export type Format = "Physical" | "Digital";
 
+export type TrophyTier = "bronze" | "silver" | "gold" | "platinum";
+
 export interface Trophy {
   id: string;
   name: string;
   description: string | null;
   iconUrl: string | null;
-  type: "bronze" | "silver" | "gold" | "platinum";
+  type: TrophyTier;
   earned: boolean;
   earnedAt: string | null;
 }

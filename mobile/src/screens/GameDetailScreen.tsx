@@ -13,8 +13,9 @@ import { useFocusEffect } from "@react-navigation/native";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { RootStackParamList } from "@/navigation/types";
 import { useAppMode } from "@/state/AppModeContext";
-import { Game } from "@/types/game";
+import { Game, Trophy } from "@/types/game";
 import { colors, statusColors, statusLabels } from "@/theme/colors";
+import { TROPHY_TIER_COLORS } from "@/theme/trophyColors";
 
 type Props = NativeStackScreenProps<RootStackParamList, "GameDetail">;
 
@@ -24,6 +25,30 @@ function Field({ label, value }: { label: string; value: string | number | null 
     <View style={styles.fieldRow}>
       <Text style={styles.fieldLabel}>{label}</Text>
       <Text style={styles.fieldValue}>{value}</Text>
+    </View>
+  );
+}
+
+// The icon frame borders in PSN's own per-tier color once earned, the
+// same treatment as the web app's game detail page — locked trophies
+// keep a neutral frame, matching how PSN only reveals the tier's color
+// on unlock.
+function TrophyRow({ trophy }: { trophy: Trophy }) {
+  return (
+    <View style={styles.trophyRow}>
+      <View
+        style={[
+          styles.trophyIconFrame,
+          { borderColor: trophy.earned ? TROPHY_TIER_COLORS[trophy.type] : colors.border },
+        ]}
+      >
+        {trophy.iconUrl ? (
+          <Image source={{ uri: trophy.iconUrl }} style={styles.trophyIcon} resizeMode="cover" />
+        ) : null}
+      </View>
+      <Text style={[styles.trophyName, !trophy.earned && styles.listItemDim]} numberOfLines={2}>
+        {trophy.name}
+      </Text>
     </View>
   );
 }
@@ -155,9 +180,7 @@ export function GameDetailScreen({ route, navigation }: Props) {
             Trophies · {trophies.filter((t) => t.earned).length}/{trophies.length}
           </Text>
           {trophies.map((t) => (
-            <Text key={t.id} style={[styles.listItem, !t.earned && styles.listItemDim]}>
-              {t.earned ? "🏆" : "•"} {t.name}
-            </Text>
+            <TrophyRow key={t.id} trophy={t} />
           ))}
         </View>
       ) : null}
@@ -218,4 +241,15 @@ const styles = StyleSheet.create({
   summary: { color: colors.text, fontSize: 13, lineHeight: 19 },
   listItem: { color: colors.text, fontSize: 13, paddingVertical: 3 },
   listItemDim: { color: colors.textMuted },
+  trophyRow: { flexDirection: "row", alignItems: "center", gap: 10, paddingVertical: 4 },
+  trophyIconFrame: {
+    width: 32,
+    height: 32,
+    borderRadius: 6,
+    borderWidth: 2,
+    overflow: "hidden",
+    backgroundColor: colors.surfaceAlt,
+  },
+  trophyIcon: { width: "100%", height: "100%" },
+  trophyName: { flex: 1, color: colors.text, fontSize: 13 },
 });
