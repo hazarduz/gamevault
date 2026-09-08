@@ -1,0 +1,14 @@
+node_modules/
+.expo/
+dist/
+web-build/
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+*.orig.*
+.DS_Store
+
+# lockfile not committed, matching the web app's convention (see root .gitignore)
+package-lock.json
