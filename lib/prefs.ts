@@ -22,6 +22,11 @@ export async function updateUserPrefs(
     psnOnlineId?: string | null;
     psnNpsso?: string | null;
     steamId?: string | null;
+    raEnabled?: boolean;
+    raUsername?: string | null;
+    raApiKey?: string | null;
+    exophaseUrl?: string | null;
+    psnProfilesUrl?: string | null;
   }
 ) {
   await getUserPrefs(userId); // ensure the row exists

@@ -74,6 +74,14 @@ model Game {
   steamAchievementsSyncedAt DateTime?
   achievements              Achievement[]
 
+  // --- RetroAchievements sync ---
+  // The RetroAchievements game id this game is linked to (cross-linked by
+  // searching, same idea as Steam achievements above — RA covers classic
+  // consoles: SNES, NES, PS1, GBA, etc. See lib/retroachievements.ts.
+  raGameId          Int?
+  raSyncedAt        DateTime?
+  retroAchievements RetroAchievement[]
+
   // --- IGDB metadata ---
   igdbId        Int?     // unique per user — see @@unique below
   coverUrl      String?
@@ -99,6 +107,7 @@ model Game {
 
   @@unique([userId, igdbId])
   @@unique([userId, steamAppId])
+  @@unique([userId, raGameId])
   @@index([title])
   @@index([platform])
   @@index([wishlist])
@@ -149,6 +158,20 @@ model UserPrefs {
   // Steam library import. Just the account identifier — the Web API key is
   // instance-wide (Settings.steamApiKey), so there's no per-user secret.
   steamId     String?
+
+  // RetroAchievements sync. Unlike Steam, the Web API key here is
+  // personal per RA account (generated at retroachievements.org/settings),
+  // not instance-wide — so both username and key live here. See
+  // lib/retroachievements.ts.
+  raEnabled  Boolean @default(false)
+  raUsername String?
+  raApiKey   String?
+
+  // Plain profile links, shown on the Achievements page — neither service
+  // has a public API GameVault can pull data from (see lib/retroachievements.ts
+  // header comment), so these are just "view my profile" links, not synced.
+  exophaseUrl    String?
+  psnProfilesUrl String?
 
   updatedAt DateTime @updatedAt
 }
@@ -264,6 +287,52 @@ model Achievement {
 // the whole list via ISteamApps/GetAppList and matches locally; refreshed
 // only occasionally (the list barely changes day to day).
 model SteamAppCache {
+  id        String   @id @default("singleton")
+  payload   Json
+  fetchedAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// One RetroAchievements achievement, belonging to a Game linked via
+// raGameId. Same "delete + recreate on every sync" reasoning as Trophy
+// and Achievement above — earned status always comes fresh from RA.
+model RetroAchievement {
+  id     String @id @default(cuid())
+  gameId String
+  game   Game   @relation(fields: [gameId], references: [id], onDelete: Cascade)
+
+  raAchievementId Int // RA's numeric achievement id
+  sortOrder       Int @default(0) // RA's DisplayOrder
+
+  name        String
+  description String? @db.Text
+  iconUrl     String?
+  points      Int     @default(0)
+
+  earned   Boolean   @default(false)
+  earnedAt DateTime?
+  hardcore Boolean   @default(false) // earned in RA's hardcore mode (no save states/cheats)
+
+  @@unique([gameId, raAchievementId])
+  @@index([gameId])
+}
+
+// RetroAchievements has no cross-console name-search endpoint either
+// (same situation as Steam) — lib/retroachievements.ts fetches and
+// caches each console's full game list on demand, and this holds those
+// (one row per console, keyed by RA's numeric console id as a string).
+model RaGameCache {
+  consoleId String   @id // RA console id, as a string
+  payload   Json
+  fetchedAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// RA's console (system) list — {ID, Name} pairs, e.g. {1, "Genesis/Mega
+// Drive"}. Barely ever changes; fetched once and matched against
+// GameVault's own platform names (lib/retroachievements.ts) rather than
+// hardcoding RA's numeric ids, which could drift.
+model RaConsoleCache {
   id        String   @id @default("singleton")
   payload   Json
   fetchedAt DateTime @default(now())

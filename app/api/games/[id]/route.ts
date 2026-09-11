@@ -21,7 +21,7 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
 
   // Unlocked first, newest unlock at the very top; everything still
   // unearned keeps its natural (group / in-game) order below.
-  const [trophies, achievements] = await Promise.all([
+  const [trophies, achievements, retroAchievements] = await Promise.all([
     res.game.psnNpCommunicationId
       ? prisma.trophy.findMany({
           where: { gameId: params.id },
@@ -43,9 +43,19 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
           ],
         })
       : [],
+    res.game.raGameId
+      ? prisma.retroAchievement.findMany({
+          where: { gameId: params.id },
+          orderBy: [
+            { earned: "desc" },
+            { earnedAt: { sort: "desc", nulls: "last" } },
+            { sortOrder: "asc" },
+          ],
+        })
+      : [],
   ]);
 
-  return NextResponse.json({ ...res.game, trophies, achievements });
+  return NextResponse.json({ ...res.game, trophies, achievements, retroAchievements });
 }
 
 // Generic partial update — the edit page sends only the fields that changed.

@@ -10,8 +10,8 @@ interface PlatformCount {
   count: number;
 }
 
-// Nav is alphabetical: Collection, Currently Free, Discover, Platforms,
-// Play List, Settings, Wishlist. "Discover" and "Platforms" are
+// Nav is alphabetical: Achievements, Collection, Currently Free, Discover,
+// Platforms, Play List, Settings, Wishlist. "Discover" and "Platforms" are
 // collapsible groups — Discover holds the discovery-ish pages, Platforms
 // filters the home grid via ?platform=.
 const DISCOVER_PATHS = ["/discover", "/indie", "/picker", "/calendar"];
@@ -39,6 +39,7 @@ export default function Sidebar() {
 
   const nav = (
     <nav className="flex flex-col gap-1 text-sm">
+      <NavLink href="/achievements" label="Achievements" pathname={pathname} />
       <NavLink href="/" label="Collection" pathname={pathname} exact />
 
       <NavLink href="/free" label="Currently Free" pathname={pathname} />

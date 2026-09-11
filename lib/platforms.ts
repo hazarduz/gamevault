@@ -114,6 +114,21 @@ export function formatForPlatform(
   return chosen === "Digital" ? "Digital" : "Physical";
 }
 
+// Platforms RetroAchievements plausibly covers (classic/retro consoles
+// only) — used just to decide whether to show a game's RetroAchievements
+// section at all; the actual match against RA's own console list happens
+// server-side (lib/retroachievements.ts) and is the authoritative check.
+const RA_LIKELY_PLATFORMS = new Set([
+  "PlayStation 1", "PlayStation 2", "PSP",
+  "Xbox", "Xbox 360",
+  "GameCube", "Wii", "Nintendo 64", "SNES", "NES",
+  "Game Boy Advance", "Game Boy Color", "Game Boy",
+  "Nintendo DS", "Nintendo 3DS",
+]);
+export function mightHaveRaSupport(platform: string): boolean {
+  return RA_LIKELY_PLATFORMS.has(platform);
+}
+
 export function slugifyTitle(title: string): string {
   return title
     .toLowerCase()

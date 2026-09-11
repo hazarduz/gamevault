@@ -11,6 +11,7 @@ import {
 import StatusMark from "@/components/StatusMark";
 import SteamImport from "@/components/SteamImport";
 import SteamAchievements from "@/components/SteamAchievements";
+import RetroAchievements from "@/components/RetroAchievements";
 
 interface Prefs {
   scoreBadgeEnabled: boolean;
@@ -24,6 +25,11 @@ interface Prefs {
   psnOnlineId: string;
   hasPsnNpsso: boolean;
   steamId: string;
+  raEnabled: boolean;
+  raUsername: string;
+  hasRaApiKey: boolean;
+  exophaseUrl: string;
+  psnProfilesUrl: string;
 }
 
 interface Instance {
@@ -124,7 +130,7 @@ export default function SettingsPage() {
   }, [instance?.isAdmin]);
 
   async function savePrefs(
-    patch: Partial<Prefs> & { psnNpsso?: string }
+    patch: Partial<Prefs> & { psnNpsso?: string; raApiKey?: string }
   ) {
     setStatusMsg(null);
     const res = await fetch("/api/prefs", {
@@ -837,6 +843,46 @@ export default function SettingsPage() {
         initialSteamId={prefs.steamId}
         available={instance.steamImportEnabled && instance.hasSteamApiKey}
       />
+
+      {/* --- RetroAchievements (per-user) --- */}
+      <RetroAchievements
+        enabled={prefs.raEnabled}
+        username={prefs.raUsername}
+        hasApiKey={prefs.hasRaApiKey}
+        onToggle={(v) => savePrefs({ raEnabled: v })}
+        onSaveUsername={(v) => savePrefs({ raUsername: v })}
+        onSaveApiKey={(v) => savePrefs({ raApiKey: v })}
+      />
+
+      {/* --- External profile links (per-user) --- */}
+      <section className="rounded-card border border-ink-line bg-ink-soft p-5">
+        <h2 className="font-display text-lg font-bold text-parchment">External profile links</h2>
+        <p className="mt-1 text-sm text-mute">
+          Neither Exophase nor PSNProfiles has a public API GameVault can pull
+          data from, so these are just links to your existing profile — shown
+          on the Achievements page.
+        </p>
+        <div className="mt-4 grid grid-cols-2 gap-4">
+          <div>
+            <label className="label">Exophase profile URL</label>
+            <input
+              className="field"
+              placeholder="https://www.exophase.com/user/..."
+              defaultValue={prefs.exophaseUrl}
+              onBlur={(e) => savePrefs({ exophaseUrl: e.target.value })}
+            />
+          </div>
+          <div>
+            <label className="label">PSNProfiles profile URL</label>
+            <input
+              className="field"
+              placeholder="https://psnprofiles.com/..."
+              defaultValue={prefs.psnProfilesUrl}
+              onBlur={(e) => savePrefs({ psnProfilesUrl: e.target.value })}
+            />
+          </div>
+        </div>
+      </section>
 
       {instance.isAdmin && (
         <>

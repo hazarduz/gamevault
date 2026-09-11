@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
-import { PLATFORM_OPTIONS, isDigitalOnlyPlatform } from "@/lib/platforms";
+import { PLATFORM_OPTIONS, isDigitalOnlyPlatform, mightHaveRaSupport } from "@/lib/platforms";
 import { PLAY_STATUS_OPTIONS } from "@/lib/play-status";
 import MediaIcon from "@/components/MediaIcon";
 import { TROPHY_TIER_COLORS, TROPHY_TIER_LABELS } from "@/lib/trophy-colors";
@@ -33,6 +33,18 @@ interface Achievement {
   globalPct: number | null;
   earned: boolean;
   earnedAt: string | null;
+}
+
+interface RetroAchievement {
+  id: string;
+  sortOrder: number;
+  name: string;
+  description: string | null;
+  iconUrl: string | null;
+  points: number;
+  earned: boolean;
+  earnedAt: string | null;
+  hardcore: boolean;
 }
 
 // Platforms where a Steam release essentially never exists — everything
@@ -82,6 +94,9 @@ interface Game {
   steamAchievementsAppId: number | null;
   steamAchievementsSyncedAt: string | null;
   achievements: Achievement[];
+  raGameId: number | null;
+  raSyncedAt: string | null;
+  retroAchievements: RetroAchievement[];
 }
 
 function looksLikePlayStation(platform: string): boolean {
@@ -106,6 +121,7 @@ export default function GameDetailPage({ params }: { params: { id: string } }) {
   const [igdbLoading, setIgdbLoading] = useState(false);
   const [trophyLoading, setTrophyLoading] = useState(false);
   const [achievementLoading, setAchievementLoading] = useState(false);
+  const [raLoading, setRaLoading] = useState(false);
   const [psnSearchOpen, setPsnSearchOpen] = useState(false);
   const [psnQuery, setPsnQuery] = useState("");
   const [psnSearching, setPsnSearching] = useState(false);
@@ -312,6 +328,24 @@ export default function GameDetailPage({ params }: { params: { id: string } }) {
       setStatusMsg(e.message);
     } finally {
       setAchievementLoading(false);
+    }
+  }
+
+  async function syncRetroAchievements() {
+    if (!game) return;
+    setRaLoading(true);
+    setStatusMsg(null);
+    try {
+      const res = await fetch(`/api/games/${game.id}/sync-retroachievements`, { method: "POST" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "RetroAchievements sync failed");
+      const refreshed = await fetch(`/api/games/${game.id}`).then((r) => r.json());
+      setGame(refreshed);
+      setStatusMsg(`Synced ${data.achievementCount} achievements — ${data.earnedCount} earned.`);
+    } catch (e: any) {
+      setStatusMsg(e.message);
+    } finally {
+      setRaLoading(false);
     }
   }
 
@@ -791,6 +825,85 @@ export default function GameDetailPage({ params }: { params: { id: string } }) {
                         </div>
                       );
                     })}
+                  </div>
+                )}
+              </>
+            )}
+          </section>
+        )}
+
+        {mightHaveRaSupport(game.platform) && (
+          <section className="mt-8">
+            <div className="flex items-center justify-between">
+              <h2 className="font-display text-lg font-bold text-parchment">RetroAchievements</h2>
+              {game.raGameId && (
+                <button
+                  onClick={syncRetroAchievements}
+                  disabled={raLoading}
+                  className="btn-secondary text-xs"
+                >
+                  {raLoading ? "Syncing…" : "Refresh achievements"}
+                </button>
+              )}
+            </div>
+
+            {!game.raGameId ? (
+              <p className="mt-2 text-sm text-mute">
+                Not linked to a RetroAchievements game yet. Link it from{" "}
+                <Link href="/settings" className="text-amber underline">
+                  Settings → RetroAchievements
+                </Link>
+                .
+              </p>
+            ) : (
+              <>
+                <p className="mt-1 text-xs text-mute">
+                  {game.retroAchievements.filter((a) => a.earned).length} of{" "}
+                  {game.retroAchievements.length} earned
+                  {game.raSyncedAt && ` · synced ${new Date(game.raSyncedAt).toLocaleDateString()}`}
+                </p>
+
+                {game.retroAchievements.length === 0 ? (
+                  <p className="mt-3 text-sm text-mute">
+                    No achievements came back for this game — try refreshing.
+                  </p>
+                ) : (
+                  <div className="mt-3 space-y-1.5">
+                    {game.retroAchievements.map((a) => (
+                      <div
+                        key={a.id}
+                        className={`flex items-center gap-3 rounded-md border border-ink-line bg-ink-soft px-3 py-2 ${
+                          a.earned ? "" : "opacity-50"
+                        }`}
+                      >
+                        <div className="relative h-10 w-10 flex-shrink-0 overflow-hidden rounded bg-ink-softer">
+                          {a.iconUrl && (
+                            // Plain <img>: RA's badge-icon host isn't worth
+                            // adding to next.config.
+                            <img src={a.iconUrl} alt="" className="h-full w-full object-cover" />
+                          )}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-sm text-parchment">{a.name}</p>
+                          {a.description && (
+                            <p className="truncate text-xs text-mute">{a.description}</p>
+                          )}
+                        </div>
+                        <div className="flex-shrink-0 text-right text-xs text-mute">
+                          <p>
+                            {a.earned
+                              ? a.earnedAt
+                                ? new Date(a.earnedAt).toLocaleDateString()
+                                : "Earned"
+                              : "Locked"}
+                          </p>
+                          <p className="mt-0.5">
+                            {a.points} pt{a.points === 1 ? "" : "s"}
+                            {a.earned && a.hardcore ? " · hardcore" : ""}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 )}
               </>

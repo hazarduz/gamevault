@@ -19,6 +19,11 @@ function serialize(p: Awaited<ReturnType<typeof getUserPrefs>>) {
     psnOnlineId: p.psnOnlineId ?? "",
     hasPsnNpsso: !!p.psnNpsso,
     steamId: p.steamId ?? "",
+    raEnabled: p.raEnabled,
+    raUsername: p.raUsername ?? "",
+    hasRaApiKey: !!p.raApiKey,
+    exophaseUrl: p.exophaseUrl ?? "",
+    psnProfilesUrl: p.psnProfilesUrl ?? "",
   };
 }
 
@@ -61,6 +66,16 @@ export async function PATCH(req: NextRequest) {
   // Only overwrite the token if a new one was actually typed in.
   if (typeof body.psnNpsso === "string" && body.psnNpsso !== "") {
     data.psnNpsso = body.psnNpsso;
+  }
+
+  if (typeof body.raEnabled === "boolean") data.raEnabled = body.raEnabled;
+  if (typeof body.raUsername === "string") data.raUsername = body.raUsername.trim() || null;
+  if (typeof body.raApiKey === "string" && body.raApiKey !== "") {
+    data.raApiKey = body.raApiKey;
+  }
+  if (typeof body.exophaseUrl === "string") data.exophaseUrl = body.exophaseUrl.trim() || null;
+  if (typeof body.psnProfilesUrl === "string") {
+    data.psnProfilesUrl = body.psnProfilesUrl.trim() || null;
   }
 
   const updated = await updateUserPrefs(user.id, data);
