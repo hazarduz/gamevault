@@ -27,7 +27,12 @@ export async function POST(req: NextRequest) {
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: "Not signed in." }, { status: 401 });
 
-  const body = await req.json();
+  let body: any;
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ error: "Request body was not valid JSON" }, { status: 400 });
+  }
 
   if (!body.title || !body.platform) {
     return NextResponse.json(
@@ -39,26 +44,29 @@ export async function POST(req: NextRequest) {
   // PC is digital-only — force it regardless of what the client sent.
   const format = formatForPlatform(body.platform, body.format);
 
-  const game = await prisma.game.create({
-    data: {
-      userId: user.id,
-      title: body.title,
-      platform: body.platform,
-      region: body.region ?? null,
-      condition: format === "Digital" ? null : body.condition || null,
-      format,
-      playStatus: body.playStatus ?? "unplayed",
-      notes: body.notes ?? null,
-      igdbId: body.igdbId ?? null,
-      coverUrl: body.coverUrl ?? null,
-      releaseDate: body.releaseDate ? new Date(body.releaseDate) : null,
-      summary: body.summary ?? null,
-      genres: body.genres ?? [],
-      developer: body.developer ?? null,
-      publisher: body.publisher ?? null,
-      aggregatedRating: body.aggregatedRating ?? null,
-    },
-  });
-
-  return NextResponse.json(game, { status: 201 });
+  try {
+    const game = await prisma.game.create({
+      data: {
+        userId: user.id,
+        title: body.title,
+        platform: body.platform,
+        region: body.region ?? null,
+        condition: format === "Digital" ? null : body.condition || null,
+        format,
+        playStatus: body.playStatus ?? "unplayed",
+        notes: body.notes ?? null,
+        igdbId: body.igdbId ?? null,
+        coverUrl: body.coverUrl ?? null,
+        releaseDate: body.releaseDate ? new Date(body.releaseDate) : null,
+        summary: body.summary ?? null,
+        genres: body.genres ?? [],
+        developer: body.developer ?? null,
+        publisher: body.publisher ?? null,
+        aggregatedRating: body.aggregatedRating ?? null,
+      },
+    });
+    return NextResponse.json(game, { status: 201 });
+  } catch (e: any) {
+    return NextResponse.json({ error: e?.message || String(e) }, { status: 500 });
+  }
 }
